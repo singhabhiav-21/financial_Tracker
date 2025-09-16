@@ -8,32 +8,35 @@ class User:
         self.profilePhoto = profilePhoto
         self.dateAdded = dateAdded
 
-    # Getter and Setter for name
-    @property
-    def name(self):
+    def get_user_id(self):
+        return self._user_id
+
+    def get_name(self):
         return self._name
 
-    @name.setter
-    def name(self, value):
-        if not value:
-            raise ValueError("Name cannot be empty")
-        self._name = value
-
-    # Getter and Setter for email
-    @property
-    def email(self):
+    def get_email(self):
         return self._email
 
-    @email.setter
-    def email(self, value):
-        if "@" not in value:
-            raise ValueError("Invalid email")
-        self._email = value
-
-    @property
-    def password(self):
+    def get_password(self):
         return self._password
 
-    @password.setter
-    def password(self, value):
-        self._password = value
+    def get_profile_photo(self):
+        return self._profile_photo
+
+    def get_date_added(self):
+        return self._date_added
+
+
+    def set_name(self, name):
+        if len(name) > 0:
+            self._name = name
+
+    def set_email(self, email):
+        if "@" in email:
+            self._email = email
+
+    def set_password(self, password):
+            self._password = password
+
+    def set_profile_photo(self, photo):
+        self._profile_photo = photo
