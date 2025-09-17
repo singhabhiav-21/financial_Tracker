@@ -98,26 +98,43 @@ print(result)
 
 
 def logIn(email, password):
-    query = "SELECT * FROM users WHERE email = %s AND password = %s"
-
     if "@" not in email:
         return False, "This is not an email."
-    else:
-        cursor.execute(query, (email,))
-        conn.commit()
-        return True, "LogIn successful"
+
+    try:
+        salt = passwordSalt(email)
+        if not salt:
+            print("The email or password is incorrect!")
+            return False
+        hashedPw = hashAgain(salt, password)
+
+        query = "SELECT password FROM users WHERE email = %s"
+        cursor.execute(query,(email,))
+        realPw = cursor.fetchone()[0]
+        _, realHashpw = realPw.split(":")
+
+        if hashedPw == realHashpw:
+            print("Login Successful")
+            return True
+        else:
+            print("The email or password is incorrect")
+            return False
+    except Exception as e:
+        print("Database error: ", str(e))
+        return False
 
 
 def passwordSalt(email):
     query = "SELECT password FROM users WHERE email = %s"
     cursor.execute(query, (email,))
-    password = cursor.fetchone()
-
-    salt, hashed_pw = password.split(":")
-
+    if not result:
+        return None
+    password = cursor.fetchone()[0]
+    salt,_ = password.split(":")
     return salt
 
 
 def hashAgain(salt, password):
     hashed = hashlib.sha256((salt + password).encode()).hexdigest()
     return hashed
+
