@@ -26,7 +26,7 @@ def register(name, email, password):
 
 def isEmail(email):
     query = "SELECT * FROM users WHERE email = %s"
-    cursor.execute(query,(email,))
+    cursor.execute(query, (email,))
     if cursor.fetchone() is not None:
         print("This email is already registered. Please use a new email or continue with the current one.")
         return False
@@ -97,3 +97,27 @@ result = register(test_user["name"], test_user["email"], test_user["password"])
 print(result)
 
 
+def logIn(email, password):
+    query = "SELECT * FROM users WHERE email = %s AND password = %s"
+
+    if "@" not in email:
+        return False, "This is not an email."
+    else:
+        cursor.execute(query, (email,))
+        conn.commit()
+        return True, "LogIn successful"
+
+
+def passwordSalt(email):
+    query = "SELECT password FROM users WHERE email = %s"
+    cursor.execute(query, (email,))
+    password = cursor.fetchone()
+
+    salt, hashed_pw = password.split(":")
+
+    return salt
+
+
+def hashAgain(salt, password):
+    hashed = hashlib.sha256((salt + password).encode()).hexdigest()
+    return hashed
