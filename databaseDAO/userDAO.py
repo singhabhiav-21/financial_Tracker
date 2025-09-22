@@ -139,7 +139,7 @@ def hashAgain(salt, password):
     return hashed
 
 
-def update_userinfo(email = None, name = None):
+def update_userinfo(email = None, name = None, new_email=None):
     query = "SELECT id FROM users WHERE = %s"
     cursor.fetchone(query, (email,))
     row = cursor.fetchone()
@@ -156,3 +156,17 @@ def update_userinfo(email = None, name = None):
             return nameChecker(name)
         update.append("name = %s")
         value.append(name)
+
+    if new_email:
+        if not isEmail(new_email):
+            print("invalid email")
+            return isEmail(new_email)
+        update.append("email = %s")
+        value.append(new_email)
+
+    value.append(email)
+    query = "UPDATE users SET { ', '.join(updates)} WHERE email = %s"
+    cursor.execute(query, tuple(value))
+    conn.commit()
+    print("User information updated successfully.")
+    return True
