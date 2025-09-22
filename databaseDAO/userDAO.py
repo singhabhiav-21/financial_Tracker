@@ -138,3 +138,21 @@ def hashAgain(salt, password):
     hashed = hashlib.sha256((salt + password).encode()).hexdigest()
     return hashed
 
+
+def update_userinfo(email = None, name = None):
+    query = "SELECT id FROM users WHERE = %s"
+    cursor.fetchone(query, (email,))
+    row = cursor.fetchone()
+    if not row:
+        print("The user does not exist")
+        return False
+
+    update = []
+    value = []
+
+    if name:
+        if not nameChecker(name):
+            print("invalid name")
+            return nameChecker(name)
+        update.append("name = %s")
+        value.append(name)
