@@ -1,4 +1,4 @@
-from sqlConnector import get_connection
+from financial_Tracker.databaseDAO.sqlConnector import get_connection
 import hashlib
 import os
 
@@ -140,7 +140,7 @@ def hashAgain(salt, password):
 
 
 def update_userinfo(email = None, name = None, new_email=None):
-    query = "SELECT id FROM users WHERE = %s"
+    query = "SELECT user_id FROM users WHERE email = %s"
     cursor.execute(query, (email,))
     row = cursor.fetchone()
     if not row:
@@ -165,7 +165,7 @@ def update_userinfo(email = None, name = None, new_email=None):
         value.append(new_email)
 
     value.append(email)
-    query = "UPDATE users SET { ', '.join(update)} WHERE email = %s"
+    query = f"UPDATE users SET { ', '.join(update)} WHERE email = %s"
     cursor.execute(query, tuple(value))
     conn.commit()
     print("User information updated successfully.")
