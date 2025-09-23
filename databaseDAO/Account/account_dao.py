@@ -41,4 +41,4 @@ def checkaccountType(actype: str):
 
 
 
-def delete_account()
+def delete_account(accountId): return
