@@ -170,3 +170,34 @@ def update_userinfo(email = None, name = None, new_email=None):
     conn.commit()
     print("User information updated successfully.")
     return True
+
+
+def update_password(email, old_password, password, re_password):
+    query = "SELECT password FROM users WHERE email = %s"
+    cursor.execute(query, (email,))
+    row = cursor.fetchone()
+    if not row:
+        print("The user does not exist!")
+        return False
+
+    storedPw = row[0]
+    old_salt, realhashPw = storedPw.split(":")
+    oldPassword_hash = hashAgain(old_salt, old_password)
+
+    if oldPassword_hash != realhashPw:
+        print("The password is incorrect!")
+        return False
+    else:
+        newPasswordCheck = checkpassword(password)
+        if not newPasswordCheck:
+            return newPasswordCheck
+        if password != re_password:
+            print("The password input does not match the given password")
+            return False
+        else:
+            query = "UPDATE users SET password = %s WHERE email = %s"
+            newPassword_hash = hashpassword(password)
+            cursor.execute(query, (newPassword_hash, email,))
+            conn.commit()
+            print("The password has been successfully changed!")
+            return True
