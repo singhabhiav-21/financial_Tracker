@@ -127,10 +127,10 @@ def logIn(email, password):
 def passwordSalt(email):
     query = "SELECT password FROM users WHERE email = %s"
     cursor.execute(query, (email,))
+    result = cursor.fetchone()[0]
     if not result:
         return None
-    password = cursor.fetchone()[0]
-    salt,_ = password.split(":")
+    salt,_ = result.split(":")
     return salt
 
 
@@ -141,7 +141,7 @@ def hashAgain(salt, password):
 
 def update_userinfo(email = None, name = None, new_email=None):
     query = "SELECT id FROM users WHERE = %s"
-    cursor.fetchone(query, (email,))
+    cursor.execute(query, (email,))
     row = cursor.fetchone()
     if not row:
         print("The user does not exist")
@@ -165,7 +165,7 @@ def update_userinfo(email = None, name = None, new_email=None):
         value.append(new_email)
 
     value.append(email)
-    query = "UPDATE users SET { ', '.join(updates)} WHERE email = %s"
+    query = "UPDATE users SET { ', '.join(update)} WHERE email = %s"
     cursor.execute(query, tuple(value))
     conn.commit()
     print("User information updated successfully.")
