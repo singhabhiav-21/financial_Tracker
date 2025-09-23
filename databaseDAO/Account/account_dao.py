@@ -1,3 +1,5 @@
+from holoviews.examples.gallery.apps.bokeh.nytaxi_hover import vline
+
 from financial_Tracker.databaseDAO.sqlConnector import get_connection
 from financial_Tracker.databaseDAO.userDAO import hashAgain
 
@@ -6,7 +8,7 @@ cursor = conn.cursor()
 
 
 def addAccount(userid, name, type, balance, currency, platform_name):
-    query = ("INSERT INTO account (user_id, account_name, account_type, account_balance, currency, platform__name) "
+    query = ("INSERT INTO account (user_id, account_name, account_type, account_balance, currency, platform_name) "
              "VALUES (%s,%s,%s,%s,%s)")
     balance = check_balance(balance)
     type = checkaccountType(type)
@@ -65,3 +67,47 @@ def delete_account(accountId, password):
     else:
         print("The password is incorrect!")
         return False
+
+
+def update_account(account_id, userid,name = None, accountType = None, balance = None, currency = None, platform_name = None):
+    query = "SELECT * FROM account WHERE account_id = %s AND user_id = %s"
+    cursor.execute(query,(account_id, userid))
+    row = cursor.fetchone()
+    if not row:
+        print("No account associated with this user")
+        return False
+
+    update = []
+    value = []
+
+    if name:
+        update.append("account_name = %s")
+        value.append(name)
+    if accountType:
+        if not checkaccountType(accountType):
+            print("Check account type")
+            return False
+        update.append("account_type = %s")
+        value.append(accountType)
+    if balance:
+        if not check_balance(balance):
+            print("Incorrect Balance input")
+            return False
+        update.append("account_balance = %s")
+        value.append(balance)
+    if currency:
+        update.append("currency = %s")
+        value.append(currency)
+    if platform_name:
+        update.append("platform_name = %s")
+        value.append(platform_name)
+
+    if not update:
+        print("No changes were made/given.")
+        return False
+
+    query = f"UPDATE account SET{', '.join(update)} where account_id = %s"
+    cursor.execute(query, (tuple(value),))
+    conn.commit()
+    print("The changes were successfully made")
+    return True
