@@ -1,4 +1,5 @@
 from financial_Tracker.databaseDAO.sqlConnector import get_connection
+from financial_Tracker.databaseDAO.userDAO import hashAgain
 
 conn = get_connection()
 cursor = conn.cursor()
@@ -40,5 +41,27 @@ def checkaccountType(actype: str):
         return True, "Account Type acceptable!"
 
 
+def delete_account(accountId, password):
+    query = "SELECT user_id FROM account WHERE account_id = %s"
+    cursor.execute(query,(accountId,))
+    row = cursor.fetchone()
+    if not row:
+        return False, "No account associated with this user."
+    user_id = row[0]
 
-def delete_account(accountId): return
+    cursor.execute("SELECT password FROM users WHERE user_id = %s", (user_id,))
+    row = cursor.fetchone()
+
+    storedPw = row[0]
+    salt, realhashPw = storedPw.split(":")
+    Password_hash = hashAgain(salt, password)
+
+    if realhashPw == Password_hash:
+        query = "DELETE FROM account WHERE account_id = %s"
+        cursor.execute(query, (accountId,))
+        conn.commit()
+        print("The account has been deleted!")
+        return True
+    else:
+        print("The password is incorrect!")
+        return False
