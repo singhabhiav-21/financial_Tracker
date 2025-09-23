@@ -85,21 +85,11 @@ def nameChecker(name):
     return True
 
 
-# Test user data
-test_user = {
-    "name": "JohnDoe",
-    "email": "johndoe@example.com",
-    "password": "Password123!"
-}
-
-result = register(test_user["name"], test_user["email"], test_user["password"])
-
-print(result)
-
 
 def logIn(email, password):
     if "@" not in email:
-        return False, "This is not an email."
+        print("This is not an email.")
+        return False, None
 
     try:
         salt = passwordSalt(email)
@@ -108,20 +98,25 @@ def logIn(email, password):
             return False
         hashedPw = hashAgain(salt, password)
 
-        query = "SELECT password FROM users WHERE email = %s"
-        cursor.execute(query,(email,))
-        realPw = cursor.fetchone()[0]
-        _, realHashpw = realPw.split(":")
+        query = "SELECT password, user_id FROM users WHERE email = %s"
+        cursor.execute(query, (email,))
+        row = cursor.fetchone()
+        if not row:
+            print( "Invalid email or password")
+            return False, None
+
+        stored_pw, user_id = row
+        _, realHashpw = stored_pw.split(":")
 
         if hashedPw == realHashpw:
             print("Login Successful")
-            return True
+            return True, user_id
         else:
             print("The email or password is incorrect")
             return False
     except Exception as e:
         print("Database error: ", str(e))
-        return False
+        return False,
 
 
 def passwordSalt(email):
