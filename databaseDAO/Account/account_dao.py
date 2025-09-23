@@ -40,3 +40,5 @@ def checkaccountType(actype: str):
         return True, "Account Type acceptable!"
 
 
+
+def delete_account()
