@@ -10,15 +10,15 @@ cursor = conn.cursor()
 def addAccount(userid, name, type, balance, currency, platform_name):
     query = ("INSERT INTO account (user_id, account_name, account_type, account_balance, currency, platform_name) "
              "VALUES (%s,%s,%s,%s,%s)")
-    balance = check_balance(balance)
-    type = checkaccountType(type)
+    balance, msg = check_balance(balance)
+    type, msg = checkaccountType(type)
     cursor.execute(query, (userid, name, type, balance, currency, platform_name))
     conn.commit()
     return True
 
 
 def check_balance(balance: int):
-    if balance is not int:
+    if not isinstance(balance, int):
         return False, "The input should be an integer"
     elif 0 > balance or balance > 10000000:
         return False, "The balance should be between 0 and 10000000"
@@ -106,8 +106,22 @@ def update_account(account_id, userid,name = None, accountType = None, balance =
         print("No changes were made/given.")
         return False
 
-    query = f"UPDATE account SET{', '.join(update)} where account_id = %s"
-    cursor.execute(query, (tuple(value),))
+    query = f"UPDATE account SET {', '.join(update)} where account_id = %s"
+    cursor.execute(query, tuple(value))
     conn.commit()
     print("The changes were successfully made")
     return True
+
+
+def add_money(user_id, account_id, credits: int):
+    if not isinstance(credits, int):
+        print("Please enter an integer!")
+        return False
+    if credits < 0 or 10000000 < credits:
+        print("The amount added can only be between 0 and 10 million!")
+    else:
+        query = "UPDATE account SET account_balance = account_balance + %s WHERE account_id = %s AND user_id = %s "
+        cursor.execute(query, (credits, account_id, user_id)
+        conn.commit()
+        print("The balance has been updated")
+        return True
