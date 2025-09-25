@@ -121,7 +121,31 @@ def add_money(user_id, account_id, credits: int):
         print("The amount added can only be between 0 and 10 million!")
     else:
         query = "UPDATE account SET account_balance = account_balance + %s WHERE account_id = %s AND user_id = %s "
-        cursor.execute(query, (credits, account_id, user_id)
+        cursor.execute(query, (credits, account_id, user_id))
         conn.commit()
         print("The balance has been updated")
         return True
+
+
+def transfer_money(user_id, account_id1, account_id2 ,credits: int):
+    query = "SELECT account_balance FROM account WHERE account_id = %s AND user_id = %s"
+    cursor.execute(query, (account_id1,user_id))
+    row = cursor.fetchone()
+    if not row:
+        print("The user has no accounts")
+        return False
+
+    balance = row[0]
+    if balance < credits:
+        print("This account does not have enough funds!!")
+        return False
+
+    query1 = "UPDATE account SET account_balance = account_balance - %s WHERE account_id = %s AND user_id = %s"
+    cursor.execute(query1,(credits,account_id1,user_id))
+
+    query2 = "UPDATE account SET account_balance  = account_balance  + %s WHERE account_id = %s AND user_id = %s"
+    cursor.execute(query2,(credits, account_id2, user_id))
+    conn.commit()
+    print("Transfer successful")
+    return True
+
