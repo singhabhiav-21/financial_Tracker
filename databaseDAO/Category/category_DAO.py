@@ -80,8 +80,21 @@ def get_transactions(category_id, user_id):
             """
     cursor.execute(query, (category_id, user_id))
     rows = cursor.fetchall()
-    if not row:
+    if not rows:
         print("No Transactions")
         return False
-
     return rows
+
+
+def category_usage(user_id):
+    query = """
+            SELECT c.name, COUNT(t.transaction_id) as transaction_count, SUM(T.amount) as total amount
+            FROM category c 
+            LEFT JOIN transaction t ON c.category_id = t.category_id
+            WHERE c.user_id = %s 
+            GROUP BY c.category_id
+            """
+
+    cursor.execute(query, (user_id,))
+    return cursor.fetchall
+
