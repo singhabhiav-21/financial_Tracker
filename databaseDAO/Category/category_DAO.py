@@ -59,3 +59,29 @@ def update_category(category_id, user_id, name = None, type  = None):
     print("This category has been successfully updated!")
     return True
 
+
+def get_all(user_id):
+    query = "SELECT category_id, name, type, created_at, updated_on FROM category WHERE user_id = %s"
+    cursor.execute(query,(user_id,))
+    rows = cursor.fetchall()
+    if not rows:
+        print("No category under this user")
+        return False
+    return rows
+
+
+
+def get_transactions(category_id, user_id):
+    query = """
+            SELECT t.transaction_id, t.amount, t.description, t.created_at
+            FROM transactions t
+            WHERE t.category_id = %s AND t.user_id = %s
+            ORDER BY t.created_at DESC
+            """
+    cursor.execute(query, (category_id, user_id))
+    rows = cursor.fetchall()
+    if not row:
+        print("No Transactions")
+        return False
+
+    return rows
