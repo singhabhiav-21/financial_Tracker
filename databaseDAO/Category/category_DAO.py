@@ -33,4 +33,29 @@ def delete_category(category_id, user_id):
     return True
 
 
-def update
+def update_category(category_id, user_id, name = None, type  = None):
+    query = "SELECT category_id FROM category WHERE category_id = %s AND user_id = %s"
+    cursor.execute(query, (category_id, user_id,))
+    row = cursor.fetchone()
+    if not row:
+        print("The user does not have any category!")
+        return False
+
+    value = []
+    update = []
+    now = datetime.now()
+    update.append("updated_on = %s")
+    value.append(now)
+    if name:
+        update.append("name = %s")
+        value.append(name)
+    if type:
+        update.append("type = %s")
+        value.append(type)
+
+    query = f"UPDATE category SET {', '.join(update)} WHERE category_id = %s AND user_id = %s"
+    cursor.execute(query, (*value, category_id, user_id))
+    conn.commit()
+    print("This category has been successfully updated!")
+    return True
+
