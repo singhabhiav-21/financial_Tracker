@@ -65,7 +65,7 @@ def update_transaction(transaction_id, user_id, category_id=None, name=None, amo
         return False
 
 
-def get_transaction(transaction_id, user_id):
+def get_transactions(transaction_id, user_id):
     query = "SELECT * FROM transactions WHERE transaction_id = %s AND user_id = %s"
     cursor.execute(query, (transaction_id, user_id))
     rows = cursor.fetchall
@@ -73,3 +73,13 @@ def get_transaction(transaction_id, user_id):
         print("No transaction found for this user.")
         return False
     return rows
+
+
+def get_transaction(transaction_id, user_id):
+    query = "SELECT name, amount, description, created_at FROM transactions WHERE transaction_id = %s AND user_id = %s"
+    cursor.execute(query, (transaction_id, user_id))
+    row = cursor.fetchone()
+    if not row:
+        print("No transaction found for this user.")
+        return False
+    return row
