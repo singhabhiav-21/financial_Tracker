@@ -16,6 +16,8 @@ def delete_transaction(transaction_id, user_id):
     query = "DELETE transaction_id WHERE transaction_id = %s AND user_id = %s"
     cursor.execute(query, (transaction_id, user_id,))
     conn.commit()
+    print("The transaction has been deleted!!")
+    return True
 
 
 def update_transaction(transaction_id, user_id, category_id=None, name=None, amount=None, description=None):
@@ -62,3 +64,12 @@ def update_transaction(transaction_id, user_id, category_id=None, name=None, amo
         print("Error updating transaction:", e)
         return False
 
+
+def get_transaction(transaction_id, user_id):
+    query = "SELECT * FROM transactions WHERE transaction_id = %s AND user_id = %s"
+    cursor.execute(query, (transaction_id, user_id))
+    rows = cursor.fetchall
+    if not rows:
+        print("No transaction found for this user.")
+        return False
+    return rows
