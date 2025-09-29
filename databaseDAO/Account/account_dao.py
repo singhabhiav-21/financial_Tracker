@@ -1,5 +1,3 @@
-from holoviews.examples.gallery.apps.bokeh.nytaxi_hover import vline
-
 from financial_Tracker.databaseDAO.sqlConnector import get_connection
 from financial_Tracker.databaseDAO.userDAO import hashAgain
 
@@ -48,7 +46,9 @@ def delete_account(accountId, password):
     cursor.execute(query,(accountId,))
     row = cursor.fetchone()
     if not row:
-        return False, "No account associated with this user."
+        print("No account associated with this user")
+        return False
+
     user_id = row[0]
 
     cursor.execute("SELECT password FROM users WHERE user_id = %s", (user_id,))
@@ -56,18 +56,21 @@ def delete_account(accountId, password):
 
     storedPw = row[0]
     salt, realhashPw = storedPw.split(":")
-    Password_hash = hashAgain(salt, password)
-
-    if realhashPw == Password_hash:
-        query = "DELETE FROM account WHERE account_id = %s"
-        cursor.execute(query, (accountId,))
-        conn.commit()
-        print("The account has been deleted!")
-        return True
-    else:
-        print("The password is incorrect!")
+    password_hash = hashAgain(salt, password)
+    try:
+        if realhashPw == password_hash:
+            query = "DELETE FROM account WHERE account_id = %s"
+            cursor.execute(query, (accountId,))
+            conn.commit()
+            print("The account has been deleted!")
+            return True
+        else:
+            print("The password is incorrect!")
+            return False
+    except Exception as e:
+        conn.rollback
+        print("Error:", e)
         return False
-
 
 def update_account(account_id, userid,name = None, accountType = None, balance = None, currency = None, platform_name = None):
     query = "SELECT * FROM account WHERE account_id = %s AND user_id = %s"

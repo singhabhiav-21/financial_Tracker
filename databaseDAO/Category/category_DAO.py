@@ -70,7 +70,6 @@ def get_all(user_id):
     return rows
 
 
-
 def get_transactions(category_id, user_id):
     query = """
             SELECT t.transaction_id, t.amount, t.description, t.created_at
@@ -97,4 +96,3 @@ def category_usage(user_id):
 
     cursor.execute(query, (user_id,))
     return cursor.fetchall
-
