@@ -1,19 +1,18 @@
 from financial_Tracker.databaseDAO.sqlConnector import get_connection
 import datetime
 conn = get_connection()
-cursor = conn.cursor
+cursor = conn.cursor()
 
 def register_transaction(user_id, category_id,name, amount, description):
-    now = datetime.datetime
-    query = "INSERT INTO (user_id, category_id, name, amount, description, created_at) VALUES (%s,%s,%s,%s,%s)"
-    cursor.execute(query, (user_id,category_id,name, amount, description, now))
+    query = "INSERT INTO (user_id, category_id, name, amount, description) VALUES (%s,%s,%s,%s,%s)"
+    cursor.execute(query, (user_id, category_id, name, amount, description))
     conn.commit()
     print("transaction registered!")
     return True
 
 
 def delete_transaction(transaction_id, user_id):
-    query = "DELETE transaction_id WHERE transaction_id = %s AND user_id = %s"
+    query = "DELETE FROM transaction_id WHERE transaction_id = %s AND user_id = %s"
     cursor.execute(query, (transaction_id, user_id,))
     conn.commit()
     print("The transaction has been deleted!!")
@@ -38,7 +37,7 @@ def update_transaction(transaction_id, user_id, category_id=None, name=None, amo
         updates.append("name = %s")
         values.append(name)
     if amount is not None:
-        if not isinstance(amount, (int, float)) or amount <= 0:
+        if not isinstance(amount, (int, float)):
             print("Invalid amount.")
             return False
         updates.append("amount = %s")
@@ -65,10 +64,10 @@ def update_transaction(transaction_id, user_id, category_id=None, name=None, amo
         return False
 
 
-def get_transactions(transaction_id, user_id):
-    query = "SELECT * FROM transactions WHERE transaction_id = %s AND user_id = %s"
-    cursor.execute(query, (transaction_id, user_id))
-    rows = cursor.fetchall
+def get_transactions(user_id):
+    query = "SELECT * FROM transactions WHERE user_id = %s"
+    cursor.execute(query, (user_id))
+    rows = cursor.fetchall()
     if not rows:
         print("No transaction found for this user.")
         return False
