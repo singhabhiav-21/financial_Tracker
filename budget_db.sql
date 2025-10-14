@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS transactions(
     amount DECIMAL(12,2) NOT NULL,
     description VARCHAR(255),
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    transaction_date DATE,
     FOREIGN KEY (user_id) references users(user_id),
     FOREIGN KEY (category_id) references category(category_id)
 );
