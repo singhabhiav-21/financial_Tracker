@@ -3,9 +3,9 @@ import datetime
 conn = get_connection()
 cursor = conn.cursor()
 
-def register_transaction(user_id, category_id,name, amount, description):
-    query = "INSERT INTO (user_id, category_id, name, amount, description) VALUES (%s,%s,%s,%s,%s)"
-    cursor.execute(query, (user_id, category_id, name, amount, description))
+def register_transaction(user_id, category_id,name, amount, description, transaction_date):
+    query = "INSERT INTO (user_id, category_id, name, amount, description, transaction_date) VALUES (%s,%s,%s,%s,%s,%s)"
+    cursor.execute(query, (user_id, category_id, name, amount, description, transaction_date))
     conn.commit()
     print("transaction registered!")
     return True
