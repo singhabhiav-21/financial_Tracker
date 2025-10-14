@@ -60,6 +60,7 @@ class bankImporter:
                 try:
                     description = str(row["Text"]).strip()
                     amount = self._clean_amount(row['amount'])
+                    transaction_date = row["Value date"]
 
                     hash_key = f"{description}|{amount}"
                     transaction_hash = self._generate_hash(hash_key)
@@ -72,8 +73,9 @@ class bankImporter:
                         user_id=self.user_id,
                         category_id=self.category_id,
                         name=description[:25],
-                        amount = amount,
-                        description = description[:225]
+                        amount=amount,
+                        description=description[:225],
+                        transaction_date=transaction_date,
                     )
                     if new_transaction:
                         self.processed_hashes.add(transaction_hash)

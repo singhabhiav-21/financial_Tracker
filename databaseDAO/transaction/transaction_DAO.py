@@ -1,9 +1,11 @@
 from financial_Tracker.databaseDAO.sqlConnector import get_connection
 import datetime
+
 conn = get_connection()
 cursor = conn.cursor()
 
-def register_transaction(user_id, category_id,name, amount, description, transaction_date):
+
+def register_transaction(user_id, category_id, name, amount, description, transaction_date = None):
     query = "INSERT INTO (user_id, category_id, name, amount, description, transaction_date) VALUES (%s,%s,%s,%s,%s,%s)"
     cursor.execute(query, (user_id, category_id, name, amount, description, transaction_date))
     conn.commit()
