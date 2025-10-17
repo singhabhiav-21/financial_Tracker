@@ -24,6 +24,7 @@ def add_exchangeRate(currency1, currency2):
 
         if currency2 in data['rates']:
             rates[currency2] = data['rates'][currency2]
+            print("user")
             return data['rates'][currency2]
         else:
             print(f"Currency {currency2} not found!")
@@ -33,4 +34,16 @@ def add_exchangeRate(currency1, currency2):
         return False
 
 
-print(add_exchangeRate("SEK", "JPY"))
+def calculate_currency(amount: int, base, target):
+    multiplier = add_exchangeRate(base, target)
+    return f"{multiplier * amount}"
+
+
+base = "SEK"
+
+target = "INR"
+print(add_exchangeRate(base, target))
+print(calculate_currency(21, base,target))
+
+
+
