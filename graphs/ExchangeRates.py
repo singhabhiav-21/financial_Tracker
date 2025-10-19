@@ -10,7 +10,6 @@ rates = {
     'SEK': data['rates'].get('SEK'),
     'INR': data['rates'].get('INR')
 }
-
 multiplier_exchange = []
 
 
@@ -32,8 +31,6 @@ def add_exchangeRate(currency1, currency2):
 
             if len(multiplier_exchange) > 5:
                 multiplier_exchange.pop(0)
-
-
             return rate
         else:
             print(f"Currency {currency2} not found!")
@@ -48,6 +45,8 @@ def calculate_currency(amount: int):
         print("No exchange rates available!")
         return None
     return f"{multiplier_exchange[-1] * amount:.3f}"
+
+
 
 
 
