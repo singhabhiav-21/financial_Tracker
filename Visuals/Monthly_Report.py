@@ -66,3 +66,16 @@ def get_monthly_summary(df):
     }
     return all_data
 
+
+def prepared_for_chart(df):
+    daily_spending = df.groupby('transaction_date')['amount'].sum().reset_index()
+    daily_spending = daily_spending.sort_values('transaction_date')
+
+    return {
+        'amounts': daily_spending['amount'].to_list(),
+        'days':  [d.day for d in daily_spending['transaction_date']],
+        'dates': list(daily_spending['transaction_date'])
+    }
+
+
+
