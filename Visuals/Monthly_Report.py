@@ -1,6 +1,7 @@
 import reportlab
 import pandas as pd
 from PyQt5.QtSql import transaction
+from numba.scripts.generate_lower_listing import description
 from sympy.physics.units import amount
 
 from financial_Tracker.databaseDAO.sqlConnector import get_connection
@@ -41,7 +42,18 @@ def get_spent(df):
         'name': max_row['name'],
         'amount': max_row['amount']
     }
+    return formatted_max
 
-    return sorted_df, formatted_max
+
+def get_all_transactions(df):
+    all_transactions = df.sort_values(by='transaction_date', ascending=True)
+    formatted_all_transaction = {
+        'transaction_date': all_transactions['transaction_date'],
+        'name': all_transactions['name'],
+        'amount': all_transactions['amount'],
+        'description': all_transactions['description']
+    }
+    return formatted_all_transaction
+
 
 
