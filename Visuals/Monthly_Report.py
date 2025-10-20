@@ -56,4 +56,13 @@ def get_all_transactions(df):
     return formatted_all_transaction
 
 
+def get_monthly_summary(df):
+    all_data = {
+        'total': df['amount'].sum(),
+        'average': df['amount'].mean(),
+        'count': len(df),
+        'min': df['amount'].min(),
+        'max': df['amount'].max()
+    }
+    return all_data
 
