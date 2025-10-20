@@ -1,5 +1,6 @@
 import reportlab
 import pandas as pd
+from PyQt5.QtSql import transaction
 from sympy.physics.units import amount
 
 from financial_Tracker.databaseDAO.sqlConnector import get_connection
@@ -30,4 +31,17 @@ def get_data(user_id, month):
     df = pd.DataFrame(result, columns=['transaction_date', 'name', 'amount', 'description'])
     return df
 
-def
+
+def get_spent(df):
+    daily_spending = df.groupby('transaction_date')['amount'].sum().reset_index()
+    sorted_df = daily_spending.sort_values(by='amount', ascending=False)
+    max_row = sorted_df.iloc[0]
+    formatted_max = {
+        'transaction_date': max_row['transaction_date'],
+        'name': max_row['name'],
+        'amount': max_row['amount']
+    }
+
+    return sorted_df, formatted_max
+
+
