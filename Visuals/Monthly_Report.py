@@ -1,4 +1,5 @@
 from reportlab.lib.pagesizes import letter
+import pandas as pd
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
@@ -6,13 +7,15 @@ from reportlab.graphics.shapes import Drawing
 from reportlab.graphics.charts.linecharts import HorizontalLineChart
 from financial_Tracker.databaseDAO.sqlConnector import get_connection
 
-from financial_Tracker.databaseDAO.sqlConnector import get_connection
-
 conn = get_connection()
-cursor = conn.cursor
+cursor = conn.cursor()
 
 
 def get_data(user_id, month):
+    if not user_exists(user_id):
+        print(f"User with ID {user_id} does not exist!")
+        return None
+
     query = """
     SELECT transaction_date,
         amount,
@@ -24,15 +27,20 @@ def get_data(user_id, month):
     """
     cursor.execute(query, (user_id, month))
     result = cursor.fetchall()
-    cursor.close()
-    conn.close()
 
     if not result:
         print("The user has no data!(visual)")
-        return False
+        return None
 
-    df = pd.DataFrame(result, columns=['transaction_date', 'name', 'amount', 'description'])
+    df = pd.DataFrame(result, columns=['transaction_date', 'amount' ,'name' , 'description'])
     return df
+
+
+def user_exists(user_id):
+    query = "SELECT 1 FROM users WHERE user_id = %s"
+    cursor.execute(query, (user_id,))
+    result = cursor.fetchone()
+    return result is not None
 
 
 def get_spent(df):
@@ -41,7 +49,6 @@ def get_spent(df):
     max_row = sorted_df.iloc[0]
     formatted_max = {
         'transaction_date': max_row['transaction_date'],
-        'name': max_row['name'],
         'amount': max_row['amount']
     }
     return formatted_max
@@ -74,10 +81,11 @@ def prepared_for_chart(df):
     daily_spending = daily_spending.sort_values('transaction_date')
 
     return {
-        'amounts': daily_spending['amount'].to_list(),
-        'days':  [d.day for d in daily_spending['transaction_date']],
+        'amounts': daily_spending['amount'].tolist(),
+        'days': [d.day for d in daily_spending['transaction_date']],
         'dates': list(daily_spending['transaction_date'])
     }
+
 
 def create_highest_day_section(max_day_data, styles):
     elements = []
@@ -87,7 +95,7 @@ def create_highest_day_section(max_day_data, styles):
 
     table_data = [
         ['Date', 'Total Amount'],
-        [str(max_day_data['date']), f"${max_day_data['amount']:.2f}"]
+        [str(max_day_data['transaction_date']), f"SEK{max_day_data['amount']:.2f}"]
     ]
 
     table = Table(table_data, colWidths=[200, 150])
@@ -108,7 +116,6 @@ def create_highest_day_section(max_day_data, styles):
 
 
 def create_chart_section(chart_data, styles):
-
     elements = []
 
     elements.append(Paragraph("Daily Spending Trend", styles['Heading2']))
@@ -120,7 +127,7 @@ def create_chart_section(chart_data, styles):
     lc.y = 50
     lc.height = 125
     lc.width = 300
-    lc.data = [tuple(chart_data['amounts'])]
+    lc.data = [tuple(float(x) for x in chart_data['amounts'])]
     lc.joinedLines = 1
     lc.lines[0].strokeColor = colors.HexColor('#E74C3C')
     lc.lines[0].strokeWidth = 2
@@ -128,15 +135,15 @@ def create_chart_section(chart_data, styles):
     lc.categoryAxis.categoryNames = [str(d) for d in chart_data['days']]
     lc.categoryAxis.labels.fontSize = 8
     lc.valueAxis.valueMin = 0
-    lc.valueAxis.valueMax = max(chart_data['amounts']) * 1.1
+    lc.valueAxis.valueMax = float(max(chart_data['amounts'])) * 1.1
 
     drawing.add(lc)
     elements.append(drawing)
     elements.append(Spacer(1, 20))
+    return elements
 
 
 def create_transaction_list_section(df, summary, styles):
-
     elements = []
 
     elements.append(Paragraph("Transaction List", styles['Heading2']))
@@ -156,7 +163,7 @@ def create_transaction_list_section(df, summary, styles):
         table_data.append([
             str(row['transaction_date']),
             str(row['name'])[:20],
-            f"${row['amount']:.2f}",
+            f"SEK{row['amount']:.2f}",
             str(row['description'])[:30] if row['description'] else 'N/A'
         ])
 
@@ -176,5 +183,42 @@ def create_transaction_list_section(df, summary, styles):
     ]))
 
     elements.append(table)
-
     return elements
+
+
+def make_report(user_id, month, output_filename=None):
+    if output_filename is None:
+        output_filename = f'financial_report_{month}.pdf'
+
+    df = get_data(user_id, month)
+    if df is None:
+        return False
+
+    max_day = get_spent(df)
+    chart_data = prepared_for_chart(df)
+    summary = get_monthly_summary(df)
+
+    doc = SimpleDocTemplate(output_filename, pagesize=letter)
+    elements = []
+    styles = getSampleStyleSheet()
+
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=24,
+        textColor=colors.HexColor('#2C3E50'),
+        spaceAfter=30
+    )
+    elements.append(Paragraph(f"Financial Report - {month}", title_style))
+    elements.append(Spacer(1, 12))
+
+    elements.extend(create_highest_day_section(max_day, styles))
+    elements.extend(create_chart_section(chart_data, styles))
+    elements.extend(create_transaction_list_section(df, summary, styles))
+
+    doc.build(elements)
+    print(f"Report generated successfully: {output_filename}")
+    return True
+
+make_report(user_id=52, month='2025-10')
+

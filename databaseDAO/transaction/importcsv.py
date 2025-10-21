@@ -90,10 +90,6 @@ class bankImporter:
                 print(f"  Imported: {imported_c} transactions")
                 print(f"  Duplicates skipped: {duplicate_c}")
 
-                balance = get_user_balance(self.user_id)
-                print(f"  Current balance: ${balance:.2f}")
-                return imported_c
-
         except FileNotFoundError:
             print(f"Error: File '{file_path}' not found.")
             return 0
