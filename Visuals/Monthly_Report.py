@@ -105,3 +105,31 @@ def create_highest_day_section(max_day_data, styles):
     elements.append(table)
     elements.append(Spacer(1, 20))
     return elements
+
+
+def create_chart_section(chart_data, styles):
+
+    elements = []
+
+    elements.append(Paragraph("Daily Spending Trend", styles['Heading2']))
+    elements.append(Spacer(1, 12))
+
+    drawing = Drawing(400, 200)
+    lc = HorizontalLineChart()
+    lc.x = 50
+    lc.y = 50
+    lc.height = 125
+    lc.width = 300
+    lc.data = [tuple(chart_data['amounts'])]
+    lc.joinedLines = 1
+    lc.lines[0].strokeColor = colors.HexColor('#E74C3C')
+    lc.lines[0].strokeWidth = 2
+
+    lc.categoryAxis.categoryNames = [str(d) for d in chart_data['days']]
+    lc.categoryAxis.labels.fontSize = 8
+    lc.valueAxis.valueMin = 0
+    lc.valueAxis.valueMax = max(chart_data['amounts']) * 1.1
+
+    drawing.add(lc)
+    elements.append(drawing)
+    elements.append(Spacer(1, 20))
