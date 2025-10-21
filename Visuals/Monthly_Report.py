@@ -1,8 +1,10 @@
-import reportlab
-import pandas as pd
-from PyQt5.QtSql import transaction
-from numba.scripts.generate_lower_listing import description
-from sympy.physics.units import amount
+from reportlab.lib.pagesizes import letter
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.graphics.shapes import Drawing
+from reportlab.graphics.charts.linecharts import HorizontalLineChart
+from financial_Tracker.databaseDAO.sqlConnector import get_connection
 
 from financial_Tracker.databaseDAO.sqlConnector import get_connection
 
@@ -77,5 +79,29 @@ def prepared_for_chart(df):
         'dates': list(daily_spending['transaction_date'])
     }
 
+def create_highest_day_section(max_day_data, styles):
+    elements = []
 
+    elements.append(Paragraph("Highest Spending Day", styles['Heading2']))
+    elements.append(Spacer(1, 6))
 
+    table_data = [
+        ['Date', 'Total Amount'],
+        [str(max_day_data['date']), f"${max_day_data['amount']:.2f}"]
+    ]
+
+    table = Table(table_data, colWidths=[200, 150])
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3498DB')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 12),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black)
+    ]))
+
+    elements.append(table)
+    elements.append(Spacer(1, 20))
+    return elements
