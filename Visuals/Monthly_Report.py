@@ -133,3 +133,48 @@ def create_chart_section(chart_data, styles):
     drawing.add(lc)
     elements.append(drawing)
     elements.append(Spacer(1, 20))
+
+
+def create_transaction_list_section(df, summary, styles):
+
+    elements = []
+
+    elements.append(Paragraph("Transaction List", styles['Heading2']))
+    elements.append(Spacer(1, 12))
+
+    summary_text = (
+        f"Total Spending: SEK{summary['total']:.2f} | "
+        f"Average Transaction: SEK{summary['average']:.2f} | "
+        f"Total Transactions: {summary['count']}"
+    )
+    elements.append(Paragraph(summary_text, styles['Normal']))
+    elements.append(Spacer(1, 12))
+
+    table_data = [['Date', 'Name', 'Amount', 'Description']]
+
+    for _, row in df.iterrows():
+        table_data.append([
+            str(row['transaction_date']),
+            str(row['name'])[:20],
+            f"${row['amount']:.2f}",
+            str(row['description'])[:30] if row['description'] else 'N/A'
+        ])
+
+    table = Table(table_data, colWidths=[80, 120, 80, 180])
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2ECC71')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('ALIGN', (2, 0), (2, -1), 'RIGHT'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 10),
+        ('FONTSIZE', (0, 1), (-1, -1), 8),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey])
+    ]))
+
+    elements.append(table)
+
+    return elements
