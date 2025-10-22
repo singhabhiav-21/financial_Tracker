@@ -47,3 +47,16 @@ CREATE TABLE IF NOT EXISTS transactions(
 
 
 
+CREATE TABLE IF NOT EXISTS budget(
+    budget_id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NOT NULL,
+    category_id INT NULL,
+    month INT NOT NULL CHECK ( month BETWEEN 1 AND 12),
+    year INT NOT NULL,
+    amount DECIMAL(10,2) NOT NULL CHECK(amount >= 0),
+    FOREIGN KEY (user_id) references users(user_id),
+    FOREIGN KEY (category_id) references  category(category_id)
+)
+
+
+
