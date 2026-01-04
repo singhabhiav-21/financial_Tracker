@@ -13,17 +13,22 @@ class bankImporter:
         self.user_id = user_id
         self.processed_hashes = self._load_processed_hashes()
         print(
-            f"DEBUG: processed_hashes type: {type(self.processed_hashes)}, value: {self.processed_hashes}")  # ADD THIS
+            f"DEBUG: processed_hashes type: {type(self.processed_hashes)}, value: {self.processed_hashes}")
         self.category_id = default_category_id
+
+        # Initialize counters
+        self.imported_count = 0
+        self.duplicate_count = 0
 
     def _load_processed_hashes(self):
         query = """
-             SELECT DISTINCT CONCAT(description, '|', CAST(amount AS DECIMAL(12,2)), '|', transaction_date, '|', balance) as hash_key
-        FROM transactions 
-        WHERE user_id = %s
-        """
+                SELECT DISTINCT CONCAT(user_id, '|', description, '|', CAST(amount AS DECIMAL(12, 2)), '|', transaction_date, '|', \
+                                       balance) as hash_key
+                FROM transactions
+                WHERE user_id = %s \
+                """
         try:
-            cursor.execute(query,(self.user_id,))
+            cursor.execute(query, (self.user_id,))
             rows = cursor.fetchall()
             hashes = set()
             print(f"\n=== LOADING EXISTING HASHES ===")
@@ -71,10 +76,11 @@ class bankImporter:
             file = file.dropna(subset=required_columns)
             print(f"Processing {len(file)} transactions...")
 
-            imported_c = 0
-            duplicate_c = 0
+            # Reset counters
+            self.imported_count = 0
+            self.duplicate_count = 0
 
-            for index,row in file.iterrows():
+            for index, row in file.iterrows():
                 try:
                     try:
                         if pd.isna(row['Text']) or str(row["Text"]).strip() == "":
@@ -107,24 +113,30 @@ class bankImporter:
                             continue
                         transaction_date = row["Value date"]
                     except KeyError:
-                            print(f"Row {index}: Missing 'Value date' column")
-                            continue
+                        print(f"Row {index}: Missing 'Value date' column")
+                        continue
                     except Exception as e:
                         print(f"Row {index}: Invalid date format for '{description[:30]}' - {e}")
                         continue
-                    balance = self._clean_amount(row['Balance'])
 
-                    hash_key = f"{description}|{amount:.2f}|{transaction_date}|{balance:.2f}"
+                    # Handle Balance column - it may not exist in all CSVs
+                    try:
+                        balance = self._clean_amount(row['Balance']) if 'Balance' in row else 0.0
+                    except:
+                        balance = 0.0
+
+                    # Include user_id in the hash
+                    hash_key = f"{self.user_id}|{description}|{amount:.2f}|{transaction_date}|{balance:.2f}"
                     transaction_hash = self._generate_hash(hash_key)
 
-                    if imported_c < 5:  # Only show first 5 for testing
+                    if self.imported_count < 5:  # Only show first 5 for testing
                         print(f"\n--- Row {index} ---")
                         print(f"Hash key: {hash_key}")
                         print(f"Hash: {transaction_hash}")
                         print(f"Is duplicate? {transaction_hash in self.processed_hashes}")
 
                     if transaction_hash in self.processed_hashes:
-                        duplicate_c += 1
+                        self.duplicate_count += 1
                         continue
 
                     new_transaction = register_transaction(
@@ -138,23 +150,23 @@ class bankImporter:
                     )
                     if new_transaction:
                         self.processed_hashes.add(transaction_hash)
-                        imported_c += 1
+                        self.imported_count += 1
                         print(f"{'CREDIT' if amount > 0 else 'DEBIT'}: {description[:40]} | {amount:.2f}kr")
 
                 except Exception as e:
                     print(f"Error processing transaction: {e}")
                     continue
 
-                print(f"\nImport Complete:")
-                print(f"  Imported: {imported_c} transactions")
-                print(f"  Duplicates skipped: {duplicate_c}")
+            print(f"\nImport Complete:")
+            print(f"  Imported: {self.imported_count} transactions")
+            print(f"  Duplicates skipped: {self.duplicate_count}")
+
+            return True
 
         except FileNotFoundError:
             print(f"Error: File '{file_path}' not found.")
-            return 0
+            return False
 
         except Exception as e:
             print(f"Error: {e}")
-            return 0
-
-
+            return False
