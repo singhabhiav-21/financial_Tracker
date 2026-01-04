@@ -5,9 +5,9 @@ conn = get_connection()
 cursor = conn.cursor()
 
 
-def register_transaction(user_id, category_id, name, amount, description, transaction_date=None, balance=None):
-    query = "INSERT INTO transactions (user_id, category_id, name, amount, description, transaction_date,balance) VALUES (%s,%s,%s,%s,%s,%s,%s)"
-    cursor.execute(query, (user_id, category_id, name, amount, description, transaction_date,balance))
+def register_transaction(user_id, category_id, name, amount, description, transaction_date=None, balance=None, transaction_hash = None):
+    query = "INSERT INTO transactions (user_id, category_id, name, amount, description, transaction_date,balance,transaction_hash) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)"
+    cursor.execute(query, (user_id, category_id, name, amount, description, transaction_date,balance, transaction_hash))
     conn.commit()
     print("transaction registered!")
     return True
@@ -68,7 +68,7 @@ def update_transaction(transaction_id, user_id, category_id=None, name=None, amo
 
 def get_transactions(user_id):
     query = "SELECT * FROM transactions WHERE user_id = %s"
-    cursor.execute(query, (user_id))
+    cursor.execute(query, (user_id,))
     rows = cursor.fetchall()
     if not rows:
         print("No transaction found for this user.")

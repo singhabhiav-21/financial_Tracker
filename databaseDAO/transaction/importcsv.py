@@ -11,45 +11,25 @@ cursor = conn.cursor()
 class bankImporter:
     def __init__(self, user_id, default_category_id=1):
         self.user_id = user_id
-        self.processed_hashes = self._load_processed_hashes()
-        print(
-            f"DEBUG: processed_hashes type: {type(self.processed_hashes)}, value: {self.processed_hashes}")
         self.category_id = default_category_id
 
         # Initialize counters
         self.imported_count = 0
         self.duplicate_count = 0
 
-    def _load_processed_hashes(self):
+    def _check_duplicate(self, transaction_hash):
         query = """
-                SELECT DISTINCT CONCAT(user_id, '|', description, '|', CAST(amount AS DECIMAL(12, 2)), '|', transaction_date, '|', \
-                                       balance) as hash_key
-                FROM transactions
-                WHERE user_id = %s \
+            SELECT COUNT(*)
+            FROM transactions
+            WHERE user_id = %s AND transaction_hash = %s
                 """
         try:
-            cursor.execute(query, (self.user_id,))
-            rows = cursor.fetchall()
-            hashes = set()
-            print(f"\n=== LOADING EXISTING HASHES ===")
-            print(f"Found {len(rows)} existing transactions in database")
-
-            for row in rows:
-                hash_key = row[0]
-                if hash_key is None:
-                    print(f"WARNING: Skipping None hash_key")
-                    continue
-                hash_value = self._generate_hash(hash_key)
-                hashes.add(hash_value)
-                if len(hashes) <= 5:
-                    print(f"  Hash key: {hash_key}")
-                    print(f"  Hash: {hash_value}")
-
-            print(f"Total hashes loaded: {len(hashes)}\n")
-            return hashes
+            cursor.execute(query, (self.user_id, transaction_hash,))
+            result = cursor.fetchone()
+            return result[0] > 0
         except Exception as e:
             print(f"Error loading processed transactions: {e}")
-            return set()
+            return False
 
     def _generate_hash(self, transaction):
         return hashlib.sha256(transaction.encode()).hexdigest()[:16]
@@ -128,16 +108,19 @@ class bankImporter:
                     # Include user_id in the hash
                     hash_key = f"{self.user_id}|{description}|{amount:.2f}|{transaction_date}|{balance:.2f}"
                     transaction_hash = self._generate_hash(hash_key)
-
                     if self.imported_count < 5:  # Only show first 5 for testing
                         print(f"\n--- Row {index} ---")
                         print(f"Hash key: {hash_key}")
                         print(f"Hash: {transaction_hash}")
-                        print(f"Is duplicate? {transaction_hash in self.processed_hashes}")
 
-                    if transaction_hash in self.processed_hashes:
+                    if self._check_duplicate(transaction_hash):
                         self.duplicate_count += 1
+                        if self.imported_count < 5:
+                            print(f"Is duplicate? Yes")
                         continue
+
+                    if self.imported_count < 5:
+                        print(f"Is duplicate? False (not in database)")
 
                     new_transaction = register_transaction(
                         user_id=self.user_id,
@@ -147,9 +130,9 @@ class bankImporter:
                         description=description[:225],
                         transaction_date=transaction_date,
                         balance=balance,
+                        transaction_hash=transaction_hash,
                     )
                     if new_transaction:
-                        self.processed_hashes.add(transaction_hash)
                         self.imported_count += 1
                         print(f"{'CREDIT' if amount > 0 else 'DEBIT'}: {description[:40]} | {amount:.2f}kr")
 
