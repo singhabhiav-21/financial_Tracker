@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Accounts</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+
+    <!-- Load accounts.js -->
+    <script src="static/js/accounts.js" defer></script>
+
+    <!-- Debug logging -->
+    <script>
+        console.log('=== ACCOUNTS PAGE LOADING ===');
+        console.log('Location:', window.location.href);
+        console.log('User ID:', sessionStorage.getItem('user_id'));
+    </script>
+</head>
+<body>
+<div id="toast-container"></div>
+
+<div class="sidebar">
+    <div class="logo">💰 FinTracker</div>
+
+    <a class="nav-item" href="dashboard.html">
+        <span>📊</span> Dashboard
+    </a>
+
+    <a class="nav-item active" href="accounts.html">
+        <span>🏦</span> Accounts
+    </a>
+
+    <a class="nav-item" href="transactions.html">
+        <span>💳</span> Transactions
+    </a>
+
+    <a class="nav-item" href="import.html">
+        <span>📁</span> Import CSV
+    </a>
+</div>
+
+<div class="main-content">
+    <div class="header">
+        <h1>Accounts</h1>
+        <button onclick="logout()">Logout</button>
+    </div>
+
+    <button class="btn btn-primary" onclick="openModal('addAccount')">+ Add Account</button>
+
+    <div id="accounts-list">
+        <p>Loading accounts...</p>
+    </div>
+</div>
+
+<!-- Add Account Modal -->
+<div id="addAccount" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeModal('addAccount')">&times;</span>
+        <h2 class="modal-header">Add New Account</h2>
+        <form id="addAccountForm">
+            <div class="form-group">
+                <label class="form-label" for="account-name">Account Name *</label>
+                <input type="text" class="form-input" id="account-name" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="account-type">Account Type *</label>
+                <select class="form-select" id="account-type" required>
+                    <option value="">Select type</option>
+                    <option value="savings">Savings</option>
+                    <option value="current">Current</option>
+                    <option value="fixed deposit">Fixed Deposit</option>
+                    <option value="recurring deposit">Recurring Deposit</option>
+                    <option value="joint">Joint</option>
+                    <option value="student">Student</option>
+                    <option value="basic/zero-balance">Basic/Zero-Balance</option>
+                    <option value="stocks">Stocks</option>
+                    <option value="crypto">Crypto</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="account-balance">Initial Balance *</label>
+                <input type="number" class="form-input" id="account-balance"
+                       required min="0" max="10000000" step="0.01" value="0">
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="account-currency">Currency *</label>
+                <input type="text" class="form-input" id="account-currency" value="USD" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="account-platform">Platform/Bank Name</label>
+                <input type="text" class="form-input" id="account-platform"
+                       placeholder="e.g., Chase, Robinhood">
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Add Account</button>
+                <button type="button" class="btn btn-secondary" onclick="closeModal('addAccount')">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+<!-- Delete Account Modal -->
+<div id="deleteConfirmModal" class="modal">
+    <div class="modal-content" style="max-width: 450px;">
+        <span class="close" onclick="closeDeleteModal()">&times;</span>
+        <h2 class="modal-header" style="color: #ef4444;">⚠️ Delete Account</h2>
+
+        <div id="account-to-delete-info" style="background: #f9fafb; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #ef4444;">
+            <!-- Account details will be inserted here -->
+        </div>
+
+        <p style="margin-bottom: 20px; color: #666; font-size: 14px;">
+            This action cannot be undone. Please enter your password to confirm deletion.
+        </p>
+
+        <form id="deleteAccountForm">
+            <div class="form-group">
+                <label class="form-label" for="delete-password">Your Password *</label>
+                <input type="password" class="form-input" id="delete-password"
+                       placeholder="Enter your password" required autocomplete="current-password">
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn btn-danger">Delete Account</button>
+                <button type="button" class="btn btn-secondary" onclick="closeDeleteModal()">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+</body>
+</html>

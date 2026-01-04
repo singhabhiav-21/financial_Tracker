@@ -1,20 +1,20 @@
-from financial_Tracker.databaseDAO.sqlConnector import get_connection
+from ..sqlConnector import get_connection
 import datetime
 
 conn = get_connection()
 cursor = conn.cursor()
 
 
-def register_transaction(user_id, category_id, name, amount, description, transaction_date = None):
-    query = "INSERT INTO transactions (user_id, category_id, name, amount, description, transaction_date) VALUES (%s,%s,%s,%s,%s,%s)"
-    cursor.execute(query, (user_id, category_id, name, amount, description, transaction_date))
+def register_transaction(user_id, category_id, name, amount, description, transaction_date=None, balance=None):
+    query = "INSERT INTO transactions (user_id, category_id, name, amount, description, transaction_date,balance) VALUES (%s,%s,%s,%s,%s,%s,%s)"
+    cursor.execute(query, (user_id, category_id, name, amount, description, transaction_date,balance))
     conn.commit()
     print("transaction registered!")
     return True
 
 
 def delete_transaction(transaction_id, user_id):
-    query = "DELETE FROM transaction_id WHERE transaction_id = %s AND user_id = %s"
+    query = "DELETE FROM transactions WHERE transaction_id = %s AND user_id = %s"
     cursor.execute(query, (transaction_id, user_id,))
     conn.commit()
     print("The transaction has been deleted!!")

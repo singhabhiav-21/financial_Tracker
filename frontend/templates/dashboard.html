@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <script src="/static/js/common.js"></script>
+    <script src="/static/js/dashboard.js"></script>
+</head>
+<body>
+
+<!-- ✅ SIDEBAR (THIS WAS MISSING) -->
+<div class="sidebar">
+    <div class="logo">💰 FinTracker</div>
+
+    <a href="dashboard.html" class="nav-item active">
+        <span>📊</span> Dashboard
+    </a>
+
+    <a href="accounts.html" class="nav-item">
+        <span>🏦</span> Accounts
+    </a>
+
+    <a href="transactions.html" class="nav-item">
+        <span>💳</span> Transactions
+    </a>
+
+    <a href="import.html" class="nav-item">
+        <span>📁</span> Import CSV
+    </a>
+</div>
+
+<!-- ✅ MAIN CONTENT -->
+<div class="main-content">
+    <div class="header">
+        <h1>Dashboard</h1>
+        <button onclick="logout()">Logout</button>
+    </div>
+
+    <!-- ✅ DASHBOARD CARDS -->
+    <div class="cards-grid">
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">Total Balance</span>
+                <span>💰</span>
+            </div>
+            <div class="card-amount" id="total-balance">$0.00</div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">Income</span>
+                <span>📈</span>
+            </div>
+            <div class="card-amount" id="total-income">$0.00</div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">Expenses</span>
+                <span>📉</span>
+            </div>
+            <div class="card-amount" id="total-expenses">$0.00</div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">Accounts</span>
+                <span>🏦</span>
+            </div>
+            <div class="card-amount" id="total-accounts">0</div>
+        </div>
+    </div>
+
+    <!-- ✅ RECENT TRANSACTIONS (ONLY ONCE) -->
+    <div class="section">
+        <div class="section-header">
+            <h2>Recent Transactions</h2>
+            <a href="transactions.html" class="btn btn-primary">View All</a>
+        </div>
+        <div id="recent-transactions"></div>
+    </div>
+</div>
+
+</body>
+</html>
