@@ -1,8 +1,8 @@
-from ..sqlConnector import get_connection
+from financial_Tracker.databaseDAO.sqlConnector import get_connection
 import pandas as pd
 import hashlib
 
-from ..transaction.transaction_DAO import register_transaction
+from financial_Tracker.databaseDAO.transaction.transaction_DAO import register_transaction
 
 conn = get_connection()
 cursor = conn.cursor()
@@ -17,20 +17,6 @@ class bankImporter:
         self.imported_count = 0
         self.duplicate_count = 0
 
-    def _check_duplicate(self, transaction_hash):
-        query = """
-            SELECT COUNT(*)
-            FROM transactions
-            WHERE user_id = %s AND transaction_hash = %s
-                """
-        try:
-            cursor.execute(query, (self.user_id, transaction_hash,))
-            result = cursor.fetchone()
-            return result[0] > 0
-        except Exception as e:
-            print(f"Error loading processed transactions: {e}")
-            return False
-
     def _generate_hash(self, transaction):
         return hashlib.sha256(transaction.encode()).hexdigest()[:16]
 
@@ -40,20 +26,71 @@ class bankImporter:
         amount_clean = str(amount).replace(',', '').strip()
         return float(amount_clean)
 
+    def _check_duplicate(self, transaction_hash):
+        """Check if transaction hash already exists for this user in database"""
+        query = """
+                SELECT COUNT(*)
+                FROM transactions
+                WHERE user_id = %s \
+                  AND transaction_hash = %s \
+                """
+        try:
+            # Use a separate cursor to avoid "Unread result found" error
+            check_cursor = conn.cursor()
+            check_cursor.execute(query, (self.user_id, transaction_hash))
+            result = check_cursor.fetchone()  # Fixed typo: was "fecthone"
+            check_cursor.close()
+            return result[0] > 0
+        except Exception as e:
+            print(f"Error checking duplicate: {e}")
+            return False
+
     def import_csv(self, file_path: str):
         try:
-            file = pd.read_csv(file_path, sep=None, engine='python')
+            # Read CSV with flexible parsing - handle various delimiters and quoted headers
+            file = pd.read_csv(file_path, sep=None, engine='python', skipinitialspace=True, quotechar='"')
+
+            # Strip whitespace and quotes from column names
+            file.columns = file.columns.str.strip().str.strip('"\'')
+
+            print(f"DEBUG: All CSV columns detected: {list(file.columns)}")
+            print(f"DEBUG: Total rows read by pandas: {len(file)}")
+
+            # Show first few rows for debugging
+            if len(file) > 0:
+                print(f"DEBUG: First row data:")
+                print(file.head(1).to_dict('records'))
+
+            # Check for required columns (but allow extra columns)
             required_columns = ['Value date', 'Text', 'Amount']
-            missing_column = []
+            missing_columns = []
+
             for col in required_columns:
                 if col not in file.columns:
-                    missing_column.append(col)
+                    missing_columns.append(col)
 
-            if missing_column:
-                print(f"Error missing columns:  {missing_column} Expected (Value date, Text, Amount)")
+            if missing_columns:
+                print(f"Error: Missing required columns: {missing_columns}")
+                print(f"Available columns: {list(file.columns)}")
+                print(f"Expected columns: {required_columns}")
                 return None
 
+            print(f"DEBUG: All required columns found! Extra columns will be ignored.")
+
+            # Check for NA values in required columns before dropping
+            print(f"DEBUG: NA counts in required columns:")
+            for col in required_columns:
+                na_count = file[col].isna().sum()
+                print(f"  {col}: {na_count} NA values")
+
+            # Drop rows where any required column is empty
+            initial_count = len(file)
             file = file.dropna(subset=required_columns)
+            dropped_count = initial_count - len(file)
+
+            if dropped_count > 0:
+                print(f"DEBUG: Dropped {dropped_count} rows with missing data in required columns")
+
             print(f"Processing {len(file)} transactions...")
 
             # Reset counters
@@ -108,15 +145,17 @@ class bankImporter:
                     # Include user_id in the hash
                     hash_key = f"{self.user_id}|{description}|{amount:.2f}|{transaction_date}|{balance:.2f}"
                     transaction_hash = self._generate_hash(hash_key)
+
                     if self.imported_count < 5:  # Only show first 5 for testing
                         print(f"\n--- Row {index} ---")
                         print(f"Hash key: {hash_key}")
                         print(f"Hash: {transaction_hash}")
 
+                    # Check database for duplicate
                     if self._check_duplicate(transaction_hash):
                         self.duplicate_count += 1
                         if self.imported_count < 5:
-                            print(f"Is duplicate? Yes")
+                            print(f"Is duplicate? True (found in database)")
                         continue
 
                     if self.imported_count < 5:
