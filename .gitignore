@@ -7,3 +7,5 @@ __pycache__/
 *.pyo
 
 .env
+
+/Users/abhinavsingh/Money_tracker/financial_Tracker/databaseDAO/test
