@@ -1,5 +1,5 @@
-from databaseDAO.sqlConnector import get_connection
-from databaseDAO.userDAO import hashAgain
+from financial_Tracker.databaseDAO.sqlConnector import get_connection
+from financial_Tracker.databaseDAO.userDAO import hashAgain
 
 conn = get_connection()
 cursor = conn.cursor()
@@ -112,11 +112,11 @@ def update_account(account_id, userid, name=None, accountType=None, balance=None
         update = []
         value = []
 
-        if name:
+        if name is not None:
             update.append("account_name = %s")
             value.append(name)
 
-        if accountType:
+        if accountType is not None:
             validated_type, type_msg = checkaccountType(accountType)
             if validated_type is False:
                 print(f"Account type validation failed: {type_msg}")
@@ -132,11 +132,11 @@ def update_account(account_id, userid, name=None, accountType=None, balance=None
             update.append("account_balance = %s")
             value.append(validated_balance)
 
-        if currency:
+        if currency is not None:
             update.append("currency = %s")
             value.append(currency)
 
-        if platform_name:
+        if platform_name is not None:
             update.append("platform_name = %s")
             value.append(platform_name)
 
@@ -148,6 +148,7 @@ def update_account(account_id, userid, name=None, accountType=None, balance=None
         value.append(account_id)
 
         query = f"UPDATE account SET {', '.join(update)} WHERE account_id = %s"
+
         cursor.execute(query, tuple(value))
         conn.commit()
         print(f"Account {account_id} updated successfully")
