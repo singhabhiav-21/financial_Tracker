@@ -1,14 +1,6 @@
-// Import page JavaScript
+// Transaction page JavaScript
 const API_URL = 'http://localhost:8000';
 const currentUserId = parseInt(sessionStorage.getItem('user_id'));
-
-// Security Constants
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-const ALLOWED_MIME_TYPES = ['text/csv', 'application/vnd.ms-excel'];
-const ALLOWED_EXTENSIONS = ['.csv'];
-
-// State
-let selectedFile = null;
 
 // Redirect to login if not authenticated
 if (!currentUserId) {
@@ -18,9 +10,45 @@ if (!currentUserId) {
 
 // ==================== PAGE LOAD ====================
 document.addEventListener('DOMContentLoaded', () => {
-    setupUploadArea();
-    setupFileInput();
+    loadTransactions();
+
+    // Attach form handler
+    const form = document.getElementById('addTransactionForm');
+    if (form) {
+        form.addEventListener('submit', addTransaction);
+    }
+
+    // Attach delete confirm form handler
+    const deleteForm = document.getElementById('deleteTransactionForm');
+    if (deleteForm) {
+        deleteForm.addEventListener('submit', confirmDeleteTransaction);
+    }
 });
+
+// ==================== MODAL FUNCTIONS ====================
+function openModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.style.display = 'flex';
+    }
+}
+
+function closeModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.style.display = 'none';
+        // Reset form if exists
+        const form = modal.querySelector('form');
+        if (form) form.reset();
+    }
+}
+
+// Close modal when clicking outside
+window.onclick = function(event) {
+    if (event.target.classList.contains('modal')) {
+        event.target.style.display = 'none';
+    }
+}
 
 // ==================== TOAST NOTIFICATIONS ====================
 function showMessage(message, type = 'success') {
@@ -43,379 +71,200 @@ function showMessage(message, type = 'success') {
     }, 3000);
 }
 
-// ==================== UPLOAD AREA SETUP ====================
-function setupUploadArea() {
-    const uploadArea = document.getElementById('uploadArea');
-    const fileInput = document.getElementById('fileInput');
-
-    if (!uploadArea || !fileInput) return;
-
-    // Click to upload
-    uploadArea.addEventListener('click', (e) => {
-        if (e.target.tagName !== 'BUTTON') {
-            fileInput.click();
-        }
-    });
-
-    // Drag and drop events
-    uploadArea.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        uploadArea.classList.add('dragover');
-    });
-
-    uploadArea.addEventListener('dragleave', () => {
-        uploadArea.classList.remove('dragover');
-    });
-
-    uploadArea.addEventListener('drop', (e) => {
-        e.preventDefault();
-        uploadArea.classList.remove('dragover');
-
-        const files = e.dataTransfer.files;
-        if (files.length > 0) {
-            handleFileSelect(files[0]);
-        }
-    });
-}
-
-function setupFileInput() {
-    const fileInput = document.getElementById('fileInput');
-    if (!fileInput) return;
-
-    fileInput.addEventListener('change', (e) => {
-        if (e.target.files.length > 0) {
-            handleFileSelect(e.target.files[0]);
-        }
-    });
-}
-
-// ==================== FILE VALIDATION ====================
-function validateFile(file) {
-    // Check if file exists
-    if (!file) {
-        return { valid: false, error: 'No file selected' };
-    }
-
-    // Check file extension
-    const fileName = file.name.toLowerCase();
-    const hasValidExtension = ALLOWED_EXTENSIONS.some(ext => fileName.endsWith(ext));
-
-    if (!hasValidExtension) {
-        return {
-            valid: false,
-            error: 'Invalid file type. Only CSV files are allowed.'
-        };
-    }
-
-    // Check MIME type
-    if (!ALLOWED_MIME_TYPES.includes(file.type) && file.type !== '') {
-        return {
-            valid: false,
-            error: `Invalid file format. Expected: ${ALLOWED_MIME_TYPES.join(', ')}`
-        };
-    }
-
-    // Check file size
-    if (file.size > MAX_FILE_SIZE) {
-        const maxSizeMB = (MAX_FILE_SIZE / (1024 * 1024)).toFixed(1);
-        return {
-            valid: false,
-            error: `File too large. Maximum size: ${maxSizeMB} MB`
-        };
-    }
-
-    // Check for empty file
-    if (file.size === 0) {
-        return {
-            valid: false,
-            error: 'File is empty'
-        };
-    }
-
-    // Additional security: Check file name for suspicious patterns
-    const suspiciousPatterns = [
-        /\.\./,  // Directory traversal
-        /\0/,  // Null bytes
-    ];
-
-    for (const pattern of suspiciousPatterns) {
-        if (pattern.test(fileName)) {
-            return {
-                valid: false,
-                error: 'Invalid file name format'
-            };
-        }
-    }
-
-    return { valid: true };
-}
-
-// ==================== FILE SELECTION ====================
-function handleFileSelect(file) {
-    // Validate file
-    const validation = validateFile(file);
-
-    if (!validation.valid) {
-        showMessage(validation.error, 'error');
-        return;
-    }
-
-    // Store selected file
-    selectedFile = file;
-
-    // Update UI
-    displaySelectedFile(file);
-}
-
-function displaySelectedFile(file) {
-    const selectedFileDiv = document.getElementById('selectedFile');
-    const fileNameSpan = document.getElementById('fileName');
-    const fileSizeSpan = document.getElementById('fileSize');
-    const importActions = document.getElementById('importActions');
-
-    if (!selectedFileDiv || !fileNameSpan || !fileSizeSpan || !importActions) return;
-
-    fileNameSpan.textContent = file.name;
-    fileSizeSpan.textContent = formatFileSize(file.size);
-
-    selectedFileDiv.classList.add('show');
-    importActions.style.display = 'flex';
-}
-
-function removeFile() {
-    selectedFile = null;
-
-    // Reset UI
-    const selectedFileDiv = document.getElementById('selectedFile');
-    const importActions = document.getElementById('importActions');
-    const fileInput = document.getElementById('fileInput');
-
-    if (selectedFileDiv) selectedFileDiv.classList.remove('show');
-    if (importActions) importActions.style.display = 'none';
-    if (fileInput) fileInput.value = '';
-}
-
-// ==================== FILE UPLOAD ====================
-async function uploadFile() {
-    if (!selectedFile) {
-        showMessage('Please select a file first', 'error');
-        return;
-    }
-
-    // Re-validate before upload
-    const validation = validateFile(selectedFile);
-    if (!validation.valid) {
-        showMessage(validation.error, 'error');
-        return;
-    }
-
-    // Additional content validation
+// ==================== LOAD TRANSACTIONS ====================
+async function loadTransactions() {
     try {
-        await validateCSVContent(selectedFile);
-    } catch (error) {
-        showMessage(error.message, 'error');
-        return;
-    }
+        const res = await fetch(`${API_URL}/transactions?user_id=${currentUserId}`);
+        const transactions = res.ok ? await res.json() : [];
 
-    // Show progress
-    showProgress();
+        const list = document.getElementById('transactions-list');
+        if (!list) return;
 
-    // Create FormData
-    const formData = new FormData();
-    formData.append('file', selectedFile);
-    formData.append('user_id', currentUserId);
+        if (transactions.length === 0) {
+            list.innerHTML = '<p style="text-align: center; color: #666; padding: 40px;">No transactions found. Add your first transaction!</p>';
+            return;
+        }
 
-    try {
-        const response = await fetch(`${API_URL}/import-csv`, {
-            method: 'POST',
-            body: formData,
+        // Group by date
+        const grouped = {};
+        transactions.forEach(t => {
+            const date = t.transaction_date || 'No date';
+            if (!grouped[date]) grouped[date] = [];
+            grouped[date].push(t);
         });
 
-        updateProgress(100);
+        let html = '';
+        Object.keys(grouped).sort().reverse().forEach(date => {
+            html += `<div class="transaction-date-group">
+                <h3 class="transaction-date-header">${formatDate(date)}</h3>`;
+
+            grouped[date].forEach(t => {
+                const isPositive = parseFloat(t.amount) > 0;
+                html += `
+                    <div class="transaction-card">
+                        <div class="transaction-main">
+                            <div class="transaction-info">
+                                <div class="transaction-name">${escapeHtml(t.name)}</div>
+                                ${t.description ? `<div class="transaction-desc">${escapeHtml(t.description)}</div>` : ''}
+                            </div>
+                            <div class="transaction-amount ${isPositive ? 'positive' : 'negative'}">
+                                ${isPositive ? '+' : ''}$${Math.abs(parseFloat(t.amount)).toFixed(2)}
+                            </div>
+                        </div>
+                        <div class="transaction-actions">
+                            <button class="btn-edit" onclick="editTransaction(${t.transaction_id})" title="Edit">
+                                ✏️ Edit
+                            </button>
+                            <button class="btn-delete" onclick="openDeleteModal(${t.transaction_id}, '${escapeHtml(t.name).replace(/'/g, "\\'")}', ${t.amount})" title="Delete">
+                                🗑️ Delete
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+        });
+
+        list.innerHTML = html;
+    } catch (error) {
+        console.error('Error loading transactions:', error);
+        showMessage('Failed to load transactions', 'error');
+    }
+}
+
+// ==================== ADD TRANSACTION ====================
+async function addTransaction(e) {
+    e.preventDefault();
+
+    const transactionData = {
+        user_id: currentUserId,
+        category_id: parseInt(document.getElementById('transaction-category').value),
+        name: document.getElementById('transaction-name').value.trim(),
+        amount: parseFloat(document.getElementById('transaction-amount').value),
+        description: document.getElementById('transaction-description').value.trim() || null,
+        transaction_date: document.getElementById('transaction-date').value || null
+    };
+
+    // Validation
+    if (!transactionData.name) {
+        showMessage('Please enter a transaction name', 'error');
+        return;
+    }
+
+    if (isNaN(transactionData.amount) || transactionData.amount === 0) {
+        showMessage('Please enter a valid amount', 'error');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_URL}/transactions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(transactionData)
+        });
 
         if (response.ok) {
-            const result = await response.json();
-            showResults(result, true);
+            showMessage('Transaction added successfully!');
+            closeModal('addTransaction');
+            loadTransactions();
+            e.target.reset();
         } else {
             const error = await response.json();
-            throw new Error(error.detail || 'Failed to import transactions');
+            showMessage(error.detail || 'Failed to add transaction', 'error');
         }
     } catch (error) {
-        console.error('Error uploading file:', error);
-        hideProgress();
-        showMessage(error.message || 'Connection error. Please try again.', 'error');
+        console.error('Error adding transaction:', error);
+        showMessage('Connection error. Please try again.', 'error');
     }
 }
 
-// ==================== CSV CONTENT VALIDATION ====================
-async function validateCSVContent(file) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
+// ==================== DELETE TRANSACTION ====================
+let transactionToDelete = null;
 
-        reader.onload = (e) => {
-            try {
-                const text = e.target.result;
+function openDeleteModal(transactionId, transactionName, amount) {
+    transactionToDelete = transactionId;
 
-                // Check for null bytes (potential security risk)
-                if (text.includes('\0')) {
-                    reject(new Error('File contains invalid characters'));
-                    return;
-                }
+    const isPositive = parseFloat(amount) > 0;
+    const formattedAmount = `${isPositive ? '+' : ''}${Math.abs(parseFloat(amount)).toFixed(2)}`;
 
-                // Parse first few lines to validate structure
-                const lines = text.split('\n').slice(0, 10);
+    // Update modal content
+    const infoDiv = document.getElementById('transaction-to-delete-info');
+    if (infoDiv) {
+        infoDiv.innerHTML = `
+            <div style="margin-bottom: 10px;">
+                <strong style="font-size: 16px;">${transactionName}</strong>
+            </div>
+            <div style="color: ${isPositive ? '#10b981' : '#ef4444'}; font-size: 18px; font-weight: 700;">
+                ${formattedAmount}
+            </div>
+        `;
+    }
 
-                if (lines.length < 2) {
-                    reject(new Error('File is too short or empty'));
-                    return;
-                }
-
-                // Check for header row
-                const header = lines[0].toLowerCase();
-                const requiredColumns = ['value date', 'text', 'amount'];
-                const hasRequiredColumns = requiredColumns.every(col =>
-                    header.includes(col)
-                );
-
-                if (!hasRequiredColumns) {
-                    reject(new Error('Missing required columns. Expected: Value date, Text, Amount'));
-                    return;
-                }
-
-                // Check for semicolon delimiter
-                if (!header.includes(';')) {
-                    reject(new Error('File must use semicolon (;) as delimiter'));
-                    return;
-                }
-
-                resolve();
-            } catch (error) {
-                reject(new Error('Failed to parse CSV file'));
-            }
-        };
-
-        reader.onerror = () => {
-            reject(new Error('Failed to read file'));
-        };
-
-        // Read first 10KB for validation
-        const blob = file.slice(0, 10240);
-        reader.readAsText(blob);
-    });
+    openModal('deleteTransactionModal');
 }
 
-// ==================== PROGRESS HANDLING ====================
-function showProgress() {
-    const progressContainer = document.getElementById('progressContainer');
-    const importActions = document.getElementById('importActions');
-    const selectedFileDiv = document.getElementById('selectedFile');
+function closeDeleteModal() {
+    transactionToDelete = null;
+    closeModal('deleteTransactionModal');
+}
 
-    if (progressContainer) progressContainer.classList.add('show');
-    if (importActions) importActions.style.display = 'none';
-    if (selectedFileDiv) selectedFileDiv.classList.remove('show');
+async function confirmDeleteTransaction(e) {
+    e.preventDefault();
 
-    // Simulate progress
-    let progress = 0;
-    const interval = setInterval(() => {
-        progress += Math.random() * 15;
-        if (progress >= 90) {
-            clearInterval(interval);
-            progress = 90;
+    if (!transactionToDelete) return;
+
+    try {
+        const response = await fetch(`${API_URL}/transactions/${transactionToDelete}?user_id=${currentUserId}`, {
+            method: 'DELETE'
+        });
+
+        if (response.ok) {
+            showMessage('Transaction deleted successfully!');
+            closeDeleteModal();
+            loadTransactions();
+        } else {
+            const error = await response.json();
+            showMessage(error.detail || 'Failed to delete transaction', 'error');
         }
-        updateProgress(progress);
-    }, 200);
-}
-
-function updateProgress(percent) {
-    const progressBar = document.getElementById('progressBar');
-    const progressStatus = document.getElementById('progressStatus');
-
-    if (!progressBar || !progressStatus) return;
-
-    progressBar.style.width = `${percent}%`;
-    progressBar.textContent = `${Math.round(percent)}%`;
-
-    if (percent < 30) {
-        progressStatus.textContent = 'Uploading file...';
-    } else if (percent < 70) {
-        progressStatus.textContent = 'Validating data...';
-    } else if (percent < 90) {
-        progressStatus.textContent = 'Processing transactions...';
-    } else {
-        progressStatus.textContent = 'Finalizing import...';
+    } catch (error) {
+        console.error('Error deleting transaction:', error);
+        showMessage('Connection error. Please try again.', 'error');
     }
 }
 
-function hideProgress() {
-    const progressContainer = document.getElementById('progressContainer');
-    if (progressContainer) {
-        progressContainer.classList.remove('show');
-    }
-}
-
-// ==================== RESULTS DISPLAY ====================
-function showResults(result, success) {
-    hideProgress();
-
-    const resultsDiv = document.getElementById('importResults');
-    const resultIcon = document.getElementById('resultIcon');
-    const resultTitle = document.getElementById('resultTitle');
-    const resultStats = document.getElementById('resultStats');
-
-    if (!resultsDiv || !resultIcon || !resultTitle || !resultStats) return;
-
-    if (success) {
-        resultIcon.textContent = '✅';
-        resultTitle.textContent = 'Import Successful!';
-
-        resultStats.innerHTML = `
-            <div class="stat-card">
-                <div class="stat-value success">${result.imported || 0}</div>
-                <div class="stat-label">Imported</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value warning">${result.duplicates || 0}</div>
-                <div class="stat-label">Duplicates Skipped</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value info">${result.total || 0}</div>
-                <div class="stat-label">Total Processed</div>
-            </div>
-        `;
-
-        showMessage(`Successfully imported ${result.imported} transactions!`, 'success');
-    } else {
-        resultIcon.textContent = '❌';
-        resultTitle.textContent = 'Import Failed';
-
-        resultStats.innerHTML = `
-            <div class="stat-card">
-                <div class="stat-value warning">0</div>
-                <div class="stat-label">Imported</div>
-            </div>
-        `;
-    }
-
-    resultsDiv.classList.add('show');
-}
-
-function resetImport() {
-    const importResults = document.getElementById('importResults');
-    if (importResults) {
-        importResults.classList.remove('show');
-    }
-    removeFile();
+// ==================== EDIT TRANSACTION (PLACEHOLDER) ====================
+function editTransaction(id) {
+    showMessage('Edit feature coming soon!', 'info');
+    // TODO: Implement edit modal similar to accounts
 }
 
 // ==================== UTILITY FUNCTIONS ====================
-function formatFileSize(bytes) {
-    if (bytes === 0) return '0 Bytes';
+function formatDate(dateStr) {
+    if (dateStr === 'No date') return 'No Date';
 
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    const date = new Date(dateStr);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
 
-    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+    if (date.toDateString() === today.toDateString()) {
+        return 'Today';
+    } else if (date.toDateString() === yesterday.toDateString()) {
+        return 'Yesterday';
+    } else {
+        return date.toLocaleDateString('en-US', {
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
+        });
+    }
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
 function logout() {

@@ -180,6 +180,9 @@ async function loadAccounts() {
                     <button class="btn btn-danger btn-sm" onclick="deleteAccount(${a.account_id}, '${escapeHtml(a.account_name)}', ${a.account_balance})">
                         Delete Account
                     </button>
+                    <button class="btn btn-secondary btn-sm" onclick="openUpdateModal(${a.account_id})">
+                    Update Account
+                    </button>
                 </div>
             </div>
         `).join('');
@@ -361,7 +364,186 @@ async function handleDeleteAccount(e) {
         deleteBtn.innerHTML = originalText;
     }
 }
+// ===================== UPDATE ACCOUNT (IMPROVED) ========================
 
+let accountToUpdate = null;
+
+/**
+ * Opens the update modal and populates it with account data
+ * @param {number} accountId - The ID of the account to update
+ */
+async function openUpdateModal(accountId) {
+    console.log(`Opening update modal for account ${accountId}`);
+    accountToUpdate = accountId;
+
+    if (!currentUserId) {
+        showMessage('User not logged in', 'error');
+        return;
+    }
+
+    try {
+        // Show loading state
+        const modal = document.getElementById('updateAccountModal');
+        if (modal) {
+            modal.style.display = 'block';
+
+            // Disable form while loading
+            const form = document.getElementById('updateAccountForm');
+            if (form) {
+                const inputs = form.querySelectorAll('input, select, button');
+                inputs.forEach(input => input.disabled = true);
+            }
+        }
+
+        // Fetch account details from API
+        const response = await fetch(`${API_URL}/accounts/${accountId}?user_id=${currentUserId}`);
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const account = await response.json();
+        console.log('Account data loaded:', account);
+
+        // Populate form fields with account data
+        document.getElementById('update-account-id').value = account.account_id;
+        document.getElementById('update-account-name').value = account.account_name || '';
+        document.getElementById('update-account-type').value = account.account_type || '';
+        document.getElementById('update-account-balance').value = account.account_balance || 0;
+        document.getElementById('update-account-currency').value = account.currency || 'USD';
+        document.getElementById('update-account-platform').value = account.platform_name || '';
+
+        // Re-enable form inputs
+        const form = document.getElementById('updateAccountForm');
+        if (form) {
+            const inputs = form.querySelectorAll('input, select, button');
+            inputs.forEach(input => input.disabled = false);
+        }
+
+    } catch (error) {
+        console.error('Error fetching account details:', error);
+        showMessage(`Failed to load account details: ${error.message}`, 'error');
+        closeUpdateModal();
+    }
+}
+
+/**
+ * Closes the update modal and resets the form
+ */
+function closeUpdateModal() {
+    console.log('Closing update modal');
+    const modal = document.getElementById('updateAccountModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+
+    const form = document.getElementById('updateAccountForm');
+    if (form) {
+        form.reset();
+    }
+
+    accountToUpdate = null;
+}
+
+/**
+ * Handles the update account form submission
+ * @param {Event} e - The form submit event
+ */
+async function handleUpdateAccount(e) {
+    e.preventDefault();
+    console.log('=== UPDATE ACCOUNT FORM SUBMITTED ===');
+
+    if (!accountToUpdate) {
+        showMessage('No account selected for update', 'error');
+        return;
+    }
+
+    if (!currentUserId) {
+        showMessage('User not logged in', 'error');
+        return;
+    }
+
+    // Get and validate form values
+    const name = document.getElementById('update-account-name').value.trim();
+    const type = document.getElementById('update-account-type').value;
+    const balance = parseFloat(document.getElementById('update-account-balance').value);
+    const currency = document.getElementById('update-account-currency').value.trim();
+    const platform = document.getElementById('update-account-platform').value.trim();
+
+    console.log('Update form values:', { name, type, balance, currency, platform });
+
+    // Validation
+    if (!name) {
+        showMessage('Please enter an account name', 'error');
+        return;
+    }
+    if (!type) {
+        showMessage('Please select an account type', 'error');
+        return;
+    }
+    if (isNaN(balance) || balance < 0) {
+        showMessage('Please enter a valid balance (0 or greater)', 'error');
+        return;
+    }
+    if (balance > 10000000) {
+        showMessage('Balance cannot exceed 10,000,000', 'error');
+        return;
+    }
+    if (!currency) {
+        showMessage('Please enter a currency', 'error');
+        return;
+    }
+
+    // Prepare update data
+    const updateData = {
+        user_id: currentUserId,
+        name: name,
+        accountType: type,
+        balance: balance,
+        currency: currency,
+        platform_name: platform || null
+    };
+
+    console.log('Sending update data:', updateData);
+
+    // Show loading state on button
+    const submitBtn = e.target.querySelector('.btn-primary');
+    const originalText = submitBtn.innerHTML;
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '⏳ Updating...';
+
+    try {
+        const response = await fetch(`${API_URL}/accounts/${accountToUpdate}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify(updateData)
+        });
+
+        const result = await response.json();
+        console.log('Update response:', response.status, result);
+
+        if (response.ok) {
+            showMessage('✓ Account updated successfully!', 'success');
+            closeUpdateModal();
+            await loadAccounts(); // Reload the accounts list
+        } else {
+            showMessage(result.detail || 'Failed to update account', 'error');
+        }
+    } catch (error) {
+        console.error('Error updating account:', error);
+        showMessage('Connection error. Please try again.', 'error');
+    } finally {
+        // Restore button state
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+    }
+}
+
+
+console.log('✅ Account update functionality loaded');
 // ==================== INITIALIZATION ====================
 document.addEventListener('DOMContentLoaded', function() {
     console.log('=== ACCOUNTS PAGE INITIALIZED ===');
@@ -373,6 +555,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     console.log('Current User ID:', currentUserId);
 
+    // Attach Add Account form handler
     const addForm = document.getElementById('addAccountForm');
     if (addForm) {
         addForm.addEventListener('submit', handleAddAccount);
@@ -381,6 +564,7 @@ document.addEventListener('DOMContentLoaded', function() {
         console.error('❌ Add form not found!');
     }
 
+    // Attach Delete Account form handler
     const deleteForm = document.getElementById('deleteAccountForm');
     if (deleteForm) {
         deleteForm.addEventListener('submit', handleDeleteAccount);
@@ -389,8 +573,26 @@ document.addEventListener('DOMContentLoaded', function() {
         console.error('❌ Delete form not found!');
     }
 
+    // ✅ ADD THIS: Attach Update Account form handler
+    const updateForm = document.getElementById('updateAccountForm');
+    if (updateForm) {
+        updateForm.addEventListener('submit', handleUpdateAccount);
+        console.log('✅ Update form submit handler attached');
+    } else {
+        console.error('❌ Update form not found!');
+    }
+
+    // Close modal when clicking outside
+    window.addEventListener('click', function(event) {
+        const updateModal = document.getElementById('updateAccountModal');
+        if (event.target === updateModal) {
+            closeUpdateModal();
+        }
+    });
+
     loadAccounts();
 });
+
 
 // ==================== GLOBAL EXPORTS ====================
 window.openModal = openModal;
@@ -399,5 +601,10 @@ window.logout = logout;
 window.deleteAccount = deleteAccount;
 window.loadAccounts = loadAccounts;
 window.closeDeleteModal = closeDeleteModal;
+window.openUpdateModal = openUpdateModal;
+window.closeUpdateModal = closeUpdateModal;
 
 console.log('accounts.js loaded successfully');
+
+// ==================== EXPORTS ====================
+// Add these to your existing global exports section

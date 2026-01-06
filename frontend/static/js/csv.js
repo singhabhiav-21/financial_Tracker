@@ -220,13 +220,9 @@ async function uploadFile() {
 
         if (response.ok) {
             showResults(result, true);
-
-            // Auto-redirect after success
-            setTimeout(() => {
-                window.location.href = '/transactions.html';
-            }, 3000);
         } else {
-            throw new Error(result.detail || 'Failed to import transactions');
+            hideProgress();
+            showMessage(result.message || 'Import failed', 'error');
         }
     } catch (error) {
         console.error('Upload error:', error);
@@ -258,28 +254,54 @@ async function validateCSVContent(file) {
                 }
 
                 // Parse first few lines to validate structure
-                const lines = text.split('\n').slice(0, 10);
+                const lines = text.split('\n').filter(line => line.trim().length > 0);
 
                 if (lines.length < 2) {
                     reject(new Error('File is too short or empty'));
                     return;
                 }
 
-                // Check for header row - match backend requirements exactly
-                const header = lines[0].toLowerCase();
-                const requiredColumns = ['value date', 'text', 'amount'];
-                const hasRequiredColumns = requiredColumns.every(col =>
-                    header.includes(col)
+                // Check for header row - normalize and check for required columns
+                const header = lines[0].toLowerCase().trim();
+                console.log('CSV Header:', header); // Debug log
+
+                // Split by common delimiters and normalize
+                const headerCols = header.split(/[,;\t]/).map(col =>
+                    col.trim().replace(/['"]/g, '')
                 );
 
-                if (!hasRequiredColumns) {
-                    reject(new Error('Missing required columns. Expected: Value date, Text, Amount, Balance'));
+                console.log('Parsed columns:', headerCols); // Debug log
+
+                const requiredColumns = ['value date', 'text', 'amount'];
+
+                // Check if each required column exists (flexible matching)
+                const missingColumns = requiredColumns.filter(reqCol => {
+                    return !headerCols.some(headerCol => {
+                        // Flexible matching: remove spaces, special chars
+                        const normalized = headerCol.toLowerCase().replace(/[\s_-]/g, '');
+                        const reqNormalized = reqCol.toLowerCase().replace(/[\s_-]/g, '');
+                        return normalized.includes(reqNormalized) || reqNormalized.includes(normalized);
+                    });
+                });
+
+                if (missingColumns.length > 0) {
+                    console.error('Missing columns:', missingColumns);
+                    console.error('Found columns:', headerCols);
+                    reject(new Error(`Missing required columns: ${missingColumns.join(', ')}. Expected: Value date, Text, Amount`));
                     return;
                 }
 
+                // Check if there's at least one data row
+                if (lines.length < 2) {
+                    reject(new Error('CSV file has no data rows'));
+                    return;
+                }
+
+                console.log('CSV validation passed!'); // Debug log
                 resolve();
             } catch (error) {
-                reject(new Error('Failed to parse CSV file'));
+                console.error('CSV parse error:', error);
+                reject(new Error('Failed to parse CSV file: ' + error.message));
             }
         };
 
@@ -287,8 +309,8 @@ async function validateCSVContent(file) {
             reject(new Error('Failed to read file'));
         };
 
-        // Read first 10KB for validation
-        const blob = file.slice(0, 10240);
+        // Read first 50KB for validation (increased from 10KB)
+        const blob = file.slice(0, 51200);
         reader.readAsText(blob);
     });
 }
@@ -372,7 +394,7 @@ function showResults(result, success) {
             </div>
         `;
 
-        showMessage(`Successfully imported ${imported} transactions! Redirecting to transactions page...`, 'success');
+        showMessage(`Successfully imported ${imported} transactions!`, 'success');
     } else {
         resultIcon.textContent = '❌';
         resultTitle.textContent = 'Import Failed';

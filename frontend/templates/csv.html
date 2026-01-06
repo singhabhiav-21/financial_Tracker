@@ -3,376 +3,132 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Import Transactions - Finance Tracker</title>
-    <link rel="stylesheet" href="/static/styles.css">
-    <style>
-        .import-container {
-            max-width: 800px;
-            margin: 40px auto;
-            padding: 30px;
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-
-        .upload-area {
-            border: 2px dashed #d1d5db;
-            border-radius: 8px;
-            padding: 40px;
-            text-align: center;
-            margin: 20px 0;
-            transition: all 0.3s;
-            cursor: pointer;
-        }
-
-        .upload-area:hover {
-            border-color: #3b82f6;
-            background: #f9fafb;
-        }
-
-        .upload-area.dragover {
-            border-color: #3b82f6;
-            background: #eff6ff;
-        }
-
-        .file-input-label {
-            display: inline-block;
-            padding: 12px 24px;
-            background: #3b82f6;
-            color: white;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: background 0.2s;
-        }
-
-        .file-input-label:hover {
-            background: #2563eb;
-        }
-
-        #file-input {
-            display: none;
-        }
-
-        .file-info {
-            margin: 20px 0;
-            padding: 15px;
-            background: #f3f4f6;
-            border-radius: 6px;
-            display: none;
-        }
-
-        .file-info.show {
-            display: block;
-        }
-
-        .import-button {
-            padding: 12px 32px;
-            background: #10b981;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            font-weight: 600;
-            cursor: pointer;
-            font-size: 16px;
-            transition: background 0.2s;
-        }
-
-        .import-button:hover:not(:disabled) {
-            background: #059669;
-        }
-
-        .import-button:disabled {
-            background: #9ca3af;
-            cursor: not-allowed;
-        }
-
-        .result-message {
-            margin: 20px 0;
-            padding: 15px;
-            border-radius: 6px;
-            display: none;
-        }
-
-        .result-message.show {
-            display: block;
-        }
-
-        .result-message.success {
-            background: #d1fae5;
-            color: #065f46;
-            border: 1px solid #10b981;
-        }
-
-        .result-message.error {
-            background: #fee2e2;
-            color: #991b1b;
-            border: 1px solid #ef4444;
-        }
-
-        .instructions {
-            background: #eff6ff;
-            padding: 20px;
-            border-radius: 6px;
-            margin: 20px 0;
-        }
-
-        .instructions h3 {
-            margin-top: 0;
-            color: #1e40af;
-        }
-
-        .instructions ul {
-            margin: 10px 0;
-            padding-left: 20px;
-        }
-
-        .instructions li {
-            margin: 8px 0;
-            color: #1e3a8a;
-        }
-
-        .loading {
-            display: none;
-            text-align: center;
-            margin: 20px 0;
-        }
-
-        .loading.show {
-            display: block;
-        }
-
-        .spinner {
-            border: 3px solid #f3f4f6;
-            border-top: 3px solid #3b82f6;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-    </style>
+    <title>Import CSV - FinTracker</title>
+    <link rel="stylesheet" href="/static/css/csv.css">
+    <script src="/static/js/csv.js" defer></script>
 </head>
 <body>
-    <div class="sidebar">
-        <div class="logo">Finance Tracker</div>
-        <nav>
-            <a href="/dashboard.html">📊 Dashboard</a>
-            <a href="/accounts.html">💳 Accounts</a>
-            <a href="/transactions.html">💰 Transactions</a>
-            <a href="/import.html" class="active">📥 Import CSV</a>
-        </nav>
-        <button onclick="logout()" class="logout-btn">Logout</button>
+<!-- Toast Container -->
+<div id="toast-container"></div>
+
+<!-- Sidebar Navigation -->
+<div class="sidebar">
+    <div class="logo">FinTracker</div>
+    <a class="nav-item" href="dashboard.html">
+        <span></span> Dashboard
+    </a>
+    <a class="nav-item" href="accounts.html">
+        <span></span> Accounts
+    </a>
+    <a class="nav-item" href="transactions.html">
+        <span></span> Transactions
+    </a>
+    <a class="nav-item active" href="import.html">
+        <span></span> Import CSV
+    </a>
+    <a href="/reports.html" class="nav-item ">
+                <span></span> Reports
+    </a>
+     <div style="margin-top: auto; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.2);">
+            <a href="/" class="nav-item" onclick="localStorage.clear(); sessionStorage.clear();">
+                <span></span> Logout
+            </a>
+        </div>
+</div>
+
+<!-- Main Content -->
+<div class="main-content">
+    <div class="header">
+        <h1>Import Transactions from CSV</h1>
     </div>
 
-    <div class="main-content">
-        <div class="import-container">
-            <h1>Import Transactions from CSV</h1>
-
-            <div class="instructions">
-                <h3>📋 CSV File Requirements</h3>
-                <ul>
-                    <li><strong>Required Columns:</strong> Value date, Text, Amount, Balance</li>
-                    <li><strong>File Format:</strong> CSV (Comma Separated Values)</li>
-                    <li><strong>Max File Size:</strong> 5 MB</li>
-                    <li><strong>Encoding:</strong> UTF-8 or Latin-1</li>
-                    <li><strong>Date Format:</strong> YYYY-MM-DD</li>
-                </ul>
-                <p><strong>Note:</strong> Duplicate transactions will be automatically skipped.</p>
+    <div class="import-container">
+        <!-- Instructions Section -->
+        <div class="instructions-card">
+            <h3>📋 CSV File Requirements</h3>
+            <ul class="requirements-list">
+                <li><strong>Required Columns:</strong> Value date, Text, Amount, Balance</li>
+                <li><strong>Optional Column:</strong> Balance</li>
+                <li><strong>File Format:</strong> CSV (Comma Separated Values)</li>
+                <li><strong>Max File Size:</strong> 5 MB</li>
+                <li><strong>Encoding:</strong> UTF-8 or Latin-1</li>
+                <li><strong>Date Format:</strong> YYYY-MM-DD (e.g., 2024-01-15)</li>
+            </ul>
+            <div class="info-note">
+                <span style="font-size: 20px;">💡</span>
+                <strong>Note:</strong> Duplicate transactions will be automatically detected and skipped to prevent double entries.
             </div>
+        </div>
 
-            <div class="upload-area" id="upload-area">
-                <svg width="64" height="64" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin: 0 auto 20px; color: #9ca3af;">
+        <!-- Upload Area -->
+        <div class="upload-section">
+            <div class="upload-area" id="uploadArea">
+                <svg width="64" height="64" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" class="upload-icon">
                     <path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
                 </svg>
-                <p style="color: #6b7280; margin: 10px 0;">Drag and drop your CSV file here, or</p>
-                <label for="file-input" class="file-input-label">
+                <p class="upload-text">Drag and drop your CSV file here, or</p>
+                <button type="button" class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
                     Choose File
-                </label>
-                <input type="file" id="file-input" accept=".csv" />
+                </button>
+                <input type="file" id="fileInput" accept=".csv" style="display: none;">
+                <p class="upload-hint">Only CSV files up to 5MB are accepted</p>
             </div>
 
-            <div class="file-info" id="file-info">
-                <p><strong>Selected File:</strong> <span id="file-name"></span></p>
-                <p><strong>Size:</strong> <span id="file-size"></span></p>
+            <!-- Selected File Info -->
+            <div class="selected-file" id="selectedFile">
+                <div class="file-details">
+                    <span class="file-icon">📄</span>
+                    <div class="file-meta">
+                        <strong id="fileName">filename.csv</strong>
+                        <span id="fileSize" class="file-size">0 KB</span>
+                    </div>
+                </div>
+                <button type="button" class="btn-remove" onclick="removeFile()" title="Remove file">
+                    ✕
+                </button>
             </div>
 
-            <div class="loading" id="loading">
-                <div class="spinner"></div>
-                <p style="margin-top: 15px; color: #6b7280;">Processing your file...</p>
+            <!-- Import Actions -->
+            <div class="import-actions" id="importActions" style="display: none;">
+                <button type="button" class="btn btn-success btn-large" onclick="uploadFile()">
+                    📤 Import Transactions
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="removeFile()">
+                    Cancel
+                </button>
             </div>
+        </div>
 
-            <div class="result-message" id="result-message"></div>
+        <!-- Progress Container -->
+        <div class="progress-container" id="progressContainer">
+            <div class="progress-header">
+                <h3>Processing your file...</h3>
+                <p id="progressStatus">Uploading file...</p>
+            </div>
+            <div class="progress-bar-wrapper">
+                <div class="progress-bar" id="progressBar">0%</div>
+            </div>
+        </div>
 
-            <div style="text-align: center; margin-top: 20px;">
-                <button class="import-button" id="import-btn" disabled onclick="importCSV()">
-                    Import Transactions
+        <!-- Import Results -->
+        <div class="import-results" id="importResults">
+            <div class="result-header">
+                <span class="result-icon" id="resultIcon">✅</span>
+                <h3 id="resultTitle">Import Successful!</h3>
+            </div>
+            <div class="result-stats" id="resultStats">
+                <!-- Stats will be inserted here -->
+            </div>
+            <div class="result-actions">
+                <button type="button" class="btn btn-primary" onclick="window.location.href='/transactions.html'">
+                    View Transactions
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="resetImport()">
+                    Import Another File
                 </button>
             </div>
         </div>
     </div>
-
-    <script src="/static/dashboard.js"></script>
-    <script>
-        const API_URL = 'http://localhost:8000';
-        let selectedFile = null;
-        let currentUserId = null;
-
-        // Check auth on page load
-        document.addEventListener('DOMContentLoaded', function() {
-            currentUserId = parseInt(sessionStorage.getItem('user_id'));
-            if (!currentUserId) {
-                alert('Please log in first');
-                window.location.href = '/';
-                return;
-            }
-            setupEventListeners();
-        });
-
-        function setupEventListeners() {
-            const fileInput = document.getElementById('file-input');
-            const uploadArea = document.getElementById('upload-area');
-
-            // File input change
-            fileInput.addEventListener('change', handleFileSelect);
-
-            // Drag and drop
-            uploadArea.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                uploadArea.classList.add('dragover');
-            });
-
-            uploadArea.addEventListener('dragleave', () => {
-                uploadArea.classList.remove('dragover');
-            });
-
-            uploadArea.addEventListener('drop', (e) => {
-                e.preventDefault();
-                uploadArea.classList.remove('dragover');
-
-                const files = e.dataTransfer.files;
-                if (files.length > 0) {
-                    handleFile(files[0]);
-                }
-            });
-        }
-
-        function handleFileSelect(event) {
-            const file = event.target.files[0];
-            if (file) {
-                handleFile(file);
-            }
-        }
-
-        function handleFile(file) {
-            // Validate file
-            if (!file.name.toLowerCase().endsWith('.csv')) {
-                showResult('Please select a CSV file', 'error');
-                return;
-            }
-
-            if (file.size > 5 * 1024 * 1024) {
-                showResult('File size exceeds 5 MB limit', 'error');
-                return;
-            }
-
-            selectedFile = file;
-
-            // Show file info
-            document.getElementById('file-name').textContent = file.name;
-            document.getElementById('file-size').textContent = formatFileSize(file.size);
-            document.getElementById('file-info').classList.add('show');
-            document.getElementById('import-btn').disabled = false;
-
-            // Hide previous results
-            hideResult();
-        }
-
-        function formatFileSize(bytes) {
-            if (bytes < 1024) return bytes + ' B';
-            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
-            return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
-        }
-
-        async function importCSV() {
-            if (!selectedFile) {
-                showResult('Please select a file first', 'error');
-                return;
-            }
-
-            const importBtn = document.getElementById('import-btn');
-            const loading = document.getElementById('loading');
-
-            try {
-                // Show loading state
-                importBtn.disabled = true;
-                loading.classList.add('show');
-                hideResult();
-
-                // Create form data
-                const formData = new FormData();
-                formData.append('file', selectedFile);
-                formData.append('user_id', currentUserId);
-
-                // Upload file
-                const response = await fetch(`${API_URL}/import-csv`, {
-                    method: 'POST',
-                    body: formData
-                });
-
-                const result = await response.json();
-
-                if (!response.ok) {
-                    throw new Error(result.detail || 'Import failed');
-                }
-
-                // Show success message
-                const message = `
-                    <strong>✓ Import Successful!</strong><br>
-                    <div style="margin-top: 10px;">
-                        • Imported: ${result.imported} new transactions<br>
-                        • Duplicates skipped: ${result.duplicates}<br>
-                        • Total processed: ${result.total}
-                    </div>
-                `;
-                showResult(message, 'success');
-
-                // Reset form
-                setTimeout(() => {
-                    document.getElementById('file-input').value = '';
-                    document.getElementById('file-info').classList.remove('show');
-                    selectedFile = null;
-
-                    // Redirect to transactions page
-                    setTimeout(() => {
-                        window.location.href = '/transactions.html';
-                    }, 2000);
-                }, 1500);
-
-            } catch (error) {
-                console.error('Import error:', error);
-                showResult('Error: ' + error.message, 'error');
-            } finally {
-                loading.classList.remove('show');
-                importBtn.disabled = false;
-            }
-        }
-
-        function showResult(message, type) {
-            const resultDiv = document.getElementById('result-message');
-            resultDiv.innerHTML = message;
-            resultDiv.className = `result-message show ${type}`;
-        }
-
-        function hideResult() {
-            const resultDiv = document.getElementById('result-message');
-            resultDiv.classList.remove('show');
-        }
-    </script>
+</div>
 </body>
 </html>
