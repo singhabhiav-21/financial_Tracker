@@ -126,6 +126,17 @@ body {
     background: #e5e7eb;
 }
 
+.btn-danger {
+    background: #ef4444;
+    color: white;
+}
+
+.btn-danger:hover {
+    background: #dc2626;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px rgba(239, 68, 68, 0.3);
+}
+
 /* ==================== MODALS ==================== */
 .modal {
     display: none;

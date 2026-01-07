@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Import CSV - FinTracker</title>
-    <link rel="stylesheet" href="/static/css/csv.css">
     <script src="/static/js/csv.js" defer></script>
+    <link rel="stylesheet" href="../static/css/csv.css">
 </head>
 <body>
 <!-- Toast Container -->
@@ -14,25 +14,23 @@
 <!-- Sidebar Navigation -->
 <div class="sidebar">
     <div class="logo">FinTracker</div>
-    <a class="nav-item" href="dashboard.html">
+    <a class="nav-item" href="/dashboard">
         <span></span> Dashboard
     </a>
-    <a class="nav-item" href="accounts.html">
+    <a class="nav-item" href="/accounts.html">
         <span></span> Accounts
     </a>
-    <a class="nav-item" href="transactions.html">
+    <a class="nav-item" href="/transactions.html">
         <span></span> Transactions
     </a>
-    <a class="nav-item active" href="import.html">
-        <span></span> Import CSV
-    </a>
+    <span class="nav-item active">Import CSV</span>
     <a href="/reports.html" class="nav-item ">
                 <span></span> Reports
     </a>
      <div style="margin-top: auto; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.2);">
-            <a href="/" class="nav-item" onclick="localStorage.clear(); sessionStorage.clear();">
-                <span></span> Logout
-            </a>
+            <button type="button" class="nav-item" onclick="logout()">
+            Logout
+            </button>
         </div>
 </div>
 
@@ -45,7 +43,7 @@
     <div class="import-container">
         <!-- Instructions Section -->
         <div class="instructions-card">
-            <h3>📋 CSV File Requirements</h3>
+            <h3>CSV File Requirements</h3>
             <ul class="requirements-list">
                 <li><strong>Required Columns:</strong> Value date, Text, Amount, Balance</li>
                 <li><strong>Optional Column:</strong> Balance</li>

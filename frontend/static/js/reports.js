@@ -1,78 +1,55 @@
-// Global variables
-let currentUserId = null;
+
+// -----------------------------
+// Global state (NON-AUTH)
+// -----------------------------
 let reportToDelete = null;
 
-// Initialize on page load
-document.addEventListener('DOMContentLoaded', function() {
-    // Get user ID from localStorage or session
-    currentUserId = getUserId();
-
-    if (!currentUserId) {
-        alert('Please login first');
-        window.location.href = '/';
-        return;
-    }
-
-    // Set max date for month input to current month
-    const monthInput = document.getElementById('reportMonth');
-    const today = new Date();
-    const maxMonth = today.toISOString().substring(0, 7);
-    monthInput.max = maxMonth;
-    monthInput.value = maxMonth;
-
-    // Load reports on page load
-    loadReports();
-
-    // Setup form submission
-    document.getElementById('generateReportForm').addEventListener('submit', handleGenerateReport);
-});
-
-// Get user ID from storage
-function getUserId() {
-    const userId = localStorage.getItem('user_id') || sessionStorage.getItem('user_id');
-    return userId ? parseInt(userId) : null;
-}
-
-// Load all reports for user
-async function loadReports() {
-    const loadingState = document.getElementById('loadingState');
-    const emptyState = document.getElementById('emptyState');
-    const reportsTable = document.getElementById('reportsTable');
-
-    loadingState.style.display = 'block';
-    emptyState.style.display = 'none';
-    reportsTable.style.display = 'none';
-
+// -----------------------------
+// Init on page load
+// -----------------------------
+document.addEventListener('DOMContentLoaded', async () => {
     try {
-        const response = await fetch(`/api/reports?user_id=${currentUserId}`);
+        const res = await fetch('/auth/status', {
+            credentials: 'include'
+        });
 
-        if (!response.ok) {
-            throw new Error('Failed to load reports');
-        }
+        if (!res.ok) throw new Error('Auth failed');
 
-        const data = await response.json();
+        const data = await res.json();
 
-        loadingState.style.display = 'none';
-
-        if (!data.reports || data.reports.length === 0) {
-            emptyState.style.display = 'block';
-            updateStatistics([]);
+        if (!data.authenticated) {
+            window.location.href = '/';
             return;
         }
 
-        // Display reports in audit trail format
-        displayReportsAudit(data.reports);
-        updateStatistics(data.reports);
-        reportsTable.style.display = 'block';
+        initPage();
 
-    } catch (error) {
-        console.error('Error loading reports:', error);
-        loadingState.style.display = 'none';
-        showMessage('Failed to load reports. Please try again.', 'error');
+    } catch (err) {
+        window.location.href = '/';
     }
+});
+
+// -----------------------------
+// Page setup
+// -----------------------------
+function initPage() {
+    const monthInput = document.getElementById('reportMonth');
+    const today = new Date();
+    const maxMonth = today.toISOString().substring(0, 7);
+
+    monthInput.max = maxMonth;
+    monthInput.value = maxMonth;
+
+    loadReports();
+
+    document
+        .getElementById('generateReportForm')
+        .addEventListener('submit', handleGenerateReport);
 }
 
-// Display reports in audit trail table
+// -----------------------------
+// Load reports (SERVER decides user)
+// -----------------------------
 function displayReportsAudit(reports) {
     const tbody = document.getElementById('reportsTableBody');
     tbody.innerHTML = '';
@@ -116,7 +93,7 @@ function displayReportsAudit(reports) {
     });
 }
 
-// Update statistics cards
+
 function updateStatistics(reports) {
     const totalReports = reports.length;
     const totalSpending = reports.reduce((sum, r) => sum + parseFloat(r.total_spending || 0), 0);
@@ -130,196 +107,198 @@ function updateStatistics(reports) {
     document.getElementById('avgTransactions').textContent = avgTransactions;
 }
 
-// Handle report generation
+
+async function loadReports() {
+    const loadingState = document.getElementById('loadingState');
+    const emptyState = document.getElementById('emptyState');
+    const reportsTable = document.getElementById('reportsTable');
+
+    loadingState.style.display = 'block';
+    emptyState.style.display = 'none';
+    reportsTable.style.display = 'none';
+
+    try {
+        console.log('🔍 Fetching reports...');
+
+        const response = await fetch('/api/reports', {
+            credentials: 'include'
+        });
+
+        console.log('📥 Response status:', response.status);
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            console.error('❌ Error response:', errorData);
+            throw new Error(errorData.detail || `HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log('✅ Reports loaded:', data);
+
+        loadingState.style.display = 'none';
+
+        if (!data.reports || data.reports.length === 0) {
+            emptyState.style.display = 'block';
+            updateStatistics([]);
+            return;
+        }
+
+        displayReportsAudit(data.reports);
+        updateStatistics(data.reports);
+        reportsTable.style.display = 'block';
+
+    } catch (err) {
+        console.error('❌ Load reports error:', err);
+        loadingState.style.display = 'none';
+        showMessage(`Failed to load reports: ${err.message}`, 'error');
+    }
+}
+
+// -----------------------------
+// Generate report
+// -----------------------------
 async function handleGenerateReport(e) {
     e.preventDefault();
 
-    const monthInput = document.getElementById('reportMonth');
-    const month = monthInput.value;
-    const generateBtn = document.getElementById('generateBtn');
-    const btnText = generateBtn.querySelector('.btn-text');
-    const loader = generateBtn.querySelector('.loader');
-
+    const month = document.getElementById('reportMonth').value;
     if (!month) {
         showMessage('Please select a month', 'error');
         return;
     }
 
-    // Disable button and show loader
-    generateBtn.disabled = true;
-    btnText.style.display = 'none';
-    loader.style.display = 'block';
+    toggleGenerateBtn(true);
 
     try {
         const response = await fetch('/api/reports/generate', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                user_id: currentUserId,
-                month: month
-            })
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ month })
         });
 
         const data = await response.json();
+        if (!response.ok) throw new Error(data.detail);
 
-        if (!response.ok) {
-            throw new Error(data.detail || 'Failed to generate report');
-        }
-
-        showMessage(`✓ Report generated successfully for ${formatMonth(month)}!`, 'success');
-
+        showMessage(`✓ Report generated for ${formatMonth(month)}`, 'success');
         await downloadReport(month);
+        setTimeout(loadReports, 1000);
 
-        // Reload reports after 1.5 seconds
-        setTimeout(() => {
-            loadReports();
-        }, 1500);
-
-    } catch (error) {
-        console.error('Error generating report:', error);
-        showMessage('✗ ' + (error.message || 'Failed to generate report'), 'error');
+    } catch (err) {
+        showMessage(err.message || 'Failed to generate report', 'error');
     } finally {
-        // Re-enable button
-        generateBtn.disabled = false;
-        btnText.style.display = 'inline';
-        loader.style.display = 'none';
+        toggleGenerateBtn(false);
     }
 }
 
-// Download report PDF
+// -----------------------------
+// Download report
+// -----------------------------
 async function downloadReport(month) {
     try {
-        showMessage(`Downloading report for ${formatMonth(month)}...`, 'success');
+        const response = await fetch(`/api/reports/download?month=${month}`, {
+            credentials: 'include'
+        });
 
-        const response = await fetch(`/api/reports/download?user_id=${currentUserId}&month=${month}`);
+        if (!response.ok) throw new Error();
 
-        if (!response.ok) {
-            throw new Error('Failed to download report');
-        }
-
-        // Create blob from response
         const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
 
-        // Create download link
-        const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
         a.download = `financial_report_${month}.pdf`;
         document.body.appendChild(a);
         a.click();
 
-        // Cleanup
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        a.remove();
 
-        showMessage(`✓ Report downloaded successfully!`, 'success');
-
-    } catch (error) {
-        console.error('Error downloading report:', error);
-        showMessage('✗ Failed to download report', 'error');
+    } catch {
+        showMessage('Failed to download report', 'error');
     }
 }
 
-
-// Show delete confirmation modal
-function showDeleteModal(reportId) {
-    reportToDelete = reportId;
-    const modal = document.getElementById('deleteModal');
-    modal.classList.add('active');
-
-    // Setup confirm button
-    const confirmBtn = document.getElementById('confirmDeleteBtn');
-    confirmBtn.onclick = () => deleteReport(reportId);
-}
-
-// Close delete modal
-function closeDeleteModal() {
-    const modal = document.getElementById('deleteModal');
-    modal.classList.remove('active');
-    reportToDelete = null;
-}
-
+// -----------------------------
 // Delete report
+// -----------------------------
 async function deleteReport(reportId) {
     try {
         const response = await fetch(`/api/reports/${reportId}`, {
             method: 'DELETE',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                user_id: currentUserId
-            })
+            credentials: 'include'
         });
 
-        if (!response.ok) {
-            throw new Error('Failed to delete report');
-        }
+        if (!response.ok) throw new Error();
 
-        showMessage('✓ Report deleted successfully from audit trail!', 'success');
+        showMessage('✓ Report deleted', 'success');
         closeDeleteModal();
+        setTimeout(loadReports, 500);
 
-        // Reload reports after 1 second
-        setTimeout(() => {
-            loadReports();
-        }, 1000);
-
-    } catch (error) {
-        console.error('Error deleting report:', error);
-        showMessage('✗ Failed to delete report', 'error');
+    } catch {
+        showMessage('Failed to delete report', 'error');
     }
 }
 
-// Show message
+// -----------------------------
+// UI helpers
+// -----------------------------
+function toggleGenerateBtn(loading) {
+    const btn = document.getElementById('generateBtn');
+    btn.disabled = loading;
+    btn.querySelector('.btn-text').style.display = loading ? 'none' : 'inline';
+    btn.querySelector('.loader').style.display = loading ? 'block' : 'none';
+}
+
+function showDeleteModal(id) {
+    reportToDelete = id;
+    document.getElementById('deleteModal').classList.add('active');
+    document.getElementById('confirmDeleteBtn').onclick = () => deleteReport(id);
+}
+
+function closeDeleteModal() {
+    reportToDelete = null;
+    document.getElementById('deleteModal').classList.remove('active');
+}
+
 function showMessage(text, type) {
-    const messageEl = document.getElementById('generateMessage');
-    messageEl.textContent = text;
-    messageEl.className = `message ${type}`;
-    messageEl.style.display = 'block';
-
-    // Auto-hide after 5 seconds
-    setTimeout(() => {
-        messageEl.style.display = 'none';
-    }, 5000);
+    const el = document.getElementById('generateMessage');
+    el.textContent = text;
+    el.className = `message ${type}`;
+    el.style.display = 'block';
+    setTimeout(() => el.style.display = 'none', 4000);
 }
 
-// Format month (YYYY-MM to "Month YYYY")
-function formatMonth(month) {
-    if (!month) return '-';
-    const [year, monthNum] = month.split('-');
-    const date = new Date(year, monthNum - 1);
-    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
-}
 
-// Format date with full details
-function formatDateFull(dateString) {
-    if (!dateString) return '-';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true
-    });
-}
-
-// Format number with thousand separators
-function formatNumber(num) {
-    if (!num) return '0.00';
-    return parseFloat(num).toLocaleString('en-US', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-    });
-}
-
-// Close modal when clicking outside
-window.onclick = function(event) {
-    const modal = document.getElementById('deleteModal');
-    if (event.target.classList.contains('modal-overlay')) {
-        closeDeleteModal();
+async function logout() {
+    try {
+        await fetch('/logout', {
+            method: 'POST',
+            credentials: 'include'
+        });
+    } finally {
+        window.location.replace('/');
     }
 }
+
+// -----------------------------
+// Formatting helpers
+// -----------------------------
+function formatMonth(month) {
+    const [y, m] = month.split('-');
+    return new Date(y, m - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+}
+
+function formatDateFull(d) {
+    return new Date(d).toLocaleString('en-US');
+}
+
+function formatNumber(n) {
+    return Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 });
+}
+
+// -----------------------------
+// Modal click outside
+// -----------------------------
+window.onclick = e => {
+    if (e.target.classList.contains('modal-overlay')) closeDeleteModal();
+};

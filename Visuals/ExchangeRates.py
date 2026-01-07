@@ -52,10 +52,10 @@ class ExchangeRates:
             return rates
 
         except Exception as e:
-            print(f"❌ Error getting rates: {e}")
+            print(f"Error getting rates: {e}")
             # If cache exists, use it even if old
             if self.cache and self.cache.get('rates'):
-                print("⚠️ Using old cached rates")
+                print("Using old cached rates")
                 return self.cache.get('rates', {})
             # Otherwise return empty dict
             return {}
@@ -96,21 +96,21 @@ class ExchangeRates:
 
         # Same currency = no conversion
         if from_currency == to_currency:
-            print(f"ℹ️ Same currency ({from_currency}), no conversion needed")
+            print(f"️ Same currency ({from_currency}), no conversion needed")
             return round(amount, 2)
 
         # Get rates with to_currency as base
         rates = self.get_rates(to_currency)
 
         if not rates:
-            print(f"❌ No rates available, returning original amount")
+            print(f" No rates available, returning original amount")
             return amount
 
         # Get the rate for from_currency
         rate = rates.get(from_currency)
 
         if rate is None:
-            print(f"❌ Currency {from_currency} not found in rates")
+            print(f"Currency {from_currency} not found in rates")
             return amount
 
         # Convert: amount / rate
@@ -131,9 +131,6 @@ class ExchangeRates:
         Returns:
             Dictionary with total and converted accounts
         """
-        print(f"\n{'=' * 60}")
-        print(f"CONVERTING ACCOUNTS TO {base_currency}")
-        print(f"{'=' * 60}")
 
         rates = self.get_rates(base_currency)
 
@@ -154,7 +151,7 @@ class ExchangeRates:
             original_balance = float(account.get('account_balance', 0))
             original_currency = account.get('currency', 'USD').upper()
 
-            print(f"\n📊 Account: {account.get('account_name')}")
+            print(f"\nAccount: {account.get('account_name')}")
             print(f"   Original: {original_balance:.2f} {original_currency}")
 
             # Convert to base currency
@@ -190,7 +187,6 @@ class ExchangeRates:
         }
 
 
-# ==================== SINGLETON PATTERN ====================
 _currency_converter_instance = None
 
 
@@ -204,81 +200,7 @@ def get_currency_converter() -> ExchangeRates:
         print("🆕 Creating new currency converter instance")
         _currency_converter_instance = ExchangeRates()
     else:
-        print("♻️ Reusing existing currency converter instance")
+        print("Reusing existing currency converter instance")
 
     return _currency_converter_instance
 
-
-# Testing
-if __name__ == "__main__":
-    print("\n" + "=" * 80)
-    print("TESTING CURRENCY CONVERTER")
-    print("=" * 80)
-
-    # Test with your actual account values
-    sample_accounts = [
-        {
-            'account_id': 1,
-            'account_name': 'MyACCOUNT1',
-            'account_type': 'current',
-            'account_balance': 5009.81,
-            'currency': 'SEK',
-            'platform_name': 'seb'
-        },
-        {
-            'account_id': 2,
-            'account_name': 'Navimumbai',
-            'account_type': 'fixed deposit',
-            'account_balance': 1023.00,
-            'currency': 'USD',
-            'platform_name': 'Chase'
-        },
-        {
-            'account_id': 3,
-            'account_name': 'Navimumbai',
-            'account_type': 'savings',
-            'account_balance': 210201.00,
-            'currency': 'INR',
-            'platform_name': 'SBI'
-        },
-        {
-            'account_id': 4,
-            'account_name': 'aldhjöf',
-            'account_type': 'fixed deposit',
-            'account_balance': 1000.00,
-            'currency': 'EUR',
-            'platform_name': 'SAS'
-        }
-    ]
-
-    converter = get_currency_converter()
-
-    # Test conversion to USD
-    print("\n" + "=" * 80)
-    print("TEST 1: Convert all accounts to USD")
-    print("=" * 80)
-    result_usd = converter.convert_accounts(sample_accounts, base_currency="USD")
-
-    if result_usd['success']:
-        print(f"\n✅ EXPECTED: ~$5,000 USD")
-        print(f"✅ RESULT: ${result_usd['total_balance']:.2f} USD")
-
-    # Test conversion to SEK
-    print("\n" + "=" * 80)
-    print("TEST 2: Convert all accounts to SEK")
-    print("=" * 80)
-    result_sek = converter.convert_accounts(sample_accounts, base_currency="SEK")
-
-    if result_sek['success']:
-        print(f"\n✅ EXPECTED: ~54,000 SEK")
-        print(f"✅ RESULT: {result_sek['total_balance']:.2f} SEK")
-
-    # Test conversion to GBP
-    print("\n" + "=" * 80)
-    print("TEST 3: Convert all accounts to GBP")
-    print("=" * 80)
-    result_gbp = converter.convert_accounts(sample_accounts, base_currency="GBP")
-
-    if result_gbp['success']:
-        print(f"\n✅ EXPECTED: ~£4,000 GBP")
-        print(f"✅ RESULT: £{result_gbp['total_balance']:.2f} GBP")

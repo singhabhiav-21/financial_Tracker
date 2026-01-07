@@ -58,43 +58,73 @@ def checkaccountType(actype: str):
     return actype.lower(), "Account type valid"
 
 
-def delete_account(accountId, password):
-    """Delete an account after password verification"""
+def delete_account(current_user_id: int, account_id: int, password: str) -> bool:
+    """
+    Delete an account after verifying:
+    1. The account belongs to the current user
+    2. The password is correct for the current user
+
+    Args:
+        current_user_id: The logged-in user (from session)
+        account_id: The account to delete
+        password: Current user's password
+
+    Returns:
+        bool: True if deleted successfully, False otherwise
+    """
     try:
-        query = "SELECT user_id FROM account WHERE account_id = %s"
-        cursor.execute(query, (accountId,))
+        query = """
+                SELECT user_id
+                FROM account
+                WHERE account_id = %s \
+                """
+        cursor.execute(query, (account_id,))
         row = cursor.fetchone()
 
         if not row:
-            print(f"No account found with ID {accountId}")
+            print(f"No account found with ID {account_id}")
             return False
 
-        user_id = row[0]
+        account_owner_id = row[0]
 
-        cursor.execute("SELECT password FROM users WHERE user_id = %s", (user_id,))
+        if account_owner_id != current_user_id:
+            print(
+                f" Security: User {current_user_id} tried to delete account {account_id} owned by user {account_owner_id}")
+            return False
+
+        # Step 2: Verify password for the CURRENT user (not the account owner)
+        cursor.execute("SELECT password FROM users WHERE user_id = %s", (current_user_id,))
         row = cursor.fetchone()
 
         if not row:
-            print(f"No user found with ID {user_id}")
+            print(f"No user found with ID {current_user_id}")
             return False
 
-        storedPw = row[0]
-        salt, realhashPw = storedPw.split(":")
+        stored_pw = row[0]
+        salt, real_hash_pw = stored_pw.split(":")
         password_hash = hashAgain(salt, password)
 
-        if realhashPw == password_hash:
-            query = "DELETE FROM account WHERE account_id = %s"
-            cursor.execute(query, (accountId,))
-            conn.commit()
-            print(f"Account {accountId} deleted successfully")
-            return True
-        else:
-            print("Incorrect password")
+        if real_hash_pw != password_hash:
+            print(f"Incorrect password for user {current_user_id}")
             return False
+
+        # Step 3: Delete the account (now safe because we verified ownership)
+        query = "DELETE FROM account WHERE account_id = %s AND user_id = %s"
+        cursor.execute(query, (account_id, current_user_id))
+        conn.commit()
+
+        if cursor.rowcount == 0:
+            print(f"Delete failed, account not found or access denied")
+            return False
+
+        print(f"Account {account_id} deleted successfully by user {current_user_id}")
+        return True
 
     except Exception as e:
         conn.rollback()
         print(f"Error deleting account: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
 

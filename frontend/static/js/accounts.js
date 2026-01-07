@@ -1,17 +1,21 @@
 // ==================== CONFIGURATION ====================
-const API_URL = 'http://localhost:8000';
-let currentUserId = null;
+
 
 // ==================== AUTH CHECK ====================
-function checkAuth() {
-    currentUserId = parseInt(sessionStorage.getItem('user_id'));
-    console.log('Auth check - User ID:', currentUserId);
+async function checkAuth() {
+    const res = await fetch('/auth/status', { credentials: 'include' });
 
-    if (!currentUserId && window.location.pathname !== '/' && !window.location.pathname.includes('index.html')) {
-        alert('Please log in first');
-        window.location.href = '/';
+    if (!res.ok) {
+        window.location.replace('/');
         return false;
     }
+
+    const data = await res.json();
+    if (!data.authenticated) {
+        window.location.replace('/');
+        return false;
+    }
+
     return true;
 }
 
@@ -72,11 +76,18 @@ function showMessage(message, type = 'success') {
     }, 3000);
 }
 
-function logout() {
-    sessionStorage.removeItem('user_id');
-    sessionStorage.removeItem('email');
+async function logout() {
+   await fetch('/logout', {
+        method: 'POST',
+        credentials: 'include'
+    });
+
+    sessionStorage.clear();
+    localStorage.clear();
+
     window.location.href = '/';
 }
+
 
 const currencySymbols = {
     'USD': '$', 'EUR': '€', 'GBP': '£', 'JPY': '¥', 'CNY': '¥', 'INR': '₹',
@@ -123,14 +134,11 @@ function escapeHtml(text) {
 
 // ==================== ACCOUNTS FUNCTIONS ====================
 async function loadAccounts() {
-    if (!currentUserId) {
-        console.error('No user ID available');
-        return;
-    }
 
     try {
-        console.log(`Loading accounts for user ${currentUserId}`);
-        const res = await fetch(`${API_URL}/accounts?user_id=${currentUserId}`);
+        const res = await fetch('/accounts', {
+    credentials: 'include'
+    });
 
         if (!res.ok) {
             throw new Error(`HTTP ${res.status}: ${res.statusText}`);
@@ -201,10 +209,6 @@ async function handleAddAccount(e) {
     e.preventDefault();
     console.log('=== ADD ACCOUNT FORM SUBMITTED ===');
 
-    if (!currentUserId) {
-        showMessage('User not logged in', 'error');
-        return;
-    }
 
     const name = document.getElementById('account-name').value.trim();
     const type = document.getElementById('account-type').value;
@@ -236,7 +240,6 @@ async function handleAddAccount(e) {
     }
 
     const accountData = {
-        user_id: currentUserId,
         name: name,
         type: type,
         balance: balance,
@@ -247,12 +250,13 @@ async function handleAddAccount(e) {
     console.log('Sending account data:', accountData);
 
     try {
-        const response = await fetch(`${API_URL}/accounts`, {
+        const response = await fetch('/accounts', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json'
             },
+            credentials: 'include',
             body: JSON.stringify(accountData)
         });
 
@@ -337,12 +341,13 @@ async function handleDeleteAccount(e) {
     deleteBtn.innerHTML = '⏳ Deleting...';
 
     try {
-        const response = await fetch(`${API_URL}/accounts/${accountToDelete}`, {
+        const response = await fetch(`/accounts/${accountToDelete}`, {
             method: 'DELETE',
             headers: {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json'
             },
+            credentials: 'include',
             body: JSON.stringify({ password: password })
         });
 
@@ -376,10 +381,7 @@ async function openUpdateModal(accountId) {
     console.log(`Opening update modal for account ${accountId}`);
     accountToUpdate = accountId;
 
-    if (!currentUserId) {
-        showMessage('User not logged in', 'error');
-        return;
-    }
+
 
     try {
         // Show loading state
@@ -396,7 +398,9 @@ async function openUpdateModal(accountId) {
         }
 
         // Fetch account details from API
-        const response = await fetch(`${API_URL}/accounts/${accountId}?user_id=${currentUserId}`);
+        const response = await fetch(`/accounts/${accountId}`, {
+    credentials: 'include'
+    });
 
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -458,10 +462,6 @@ async function handleUpdateAccount(e) {
         return;
     }
 
-    if (!currentUserId) {
-        showMessage('User not logged in', 'error');
-        return;
-    }
 
     // Get and validate form values
     const name = document.getElementById('update-account-name').value.trim();
@@ -496,7 +496,6 @@ async function handleUpdateAccount(e) {
 
     // Prepare update data
     const updateData = {
-        user_id: currentUserId,
         name: name,
         accountType: type,
         balance: balance,
@@ -513,12 +512,13 @@ async function handleUpdateAccount(e) {
     submitBtn.innerHTML = '⏳ Updating...';
 
     try {
-        const response = await fetch(`${API_URL}/accounts/${accountToUpdate}`, {
+        const response = await fetch(`/accounts/${accountToUpdate}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json'
             },
+            credentials: 'include',
             body: JSON.stringify(updateData)
         });
 
@@ -547,13 +547,12 @@ console.log('✅ Account update functionality loaded');
 // ==================== INITIALIZATION ====================
 document.addEventListener('DOMContentLoaded', function() {
     console.log('=== ACCOUNTS PAGE INITIALIZED ===');
-    console.log('API URL:', API_URL);
 
     if (!checkAuth()) {
         return;
     }
 
-    console.log('Current User ID:', currentUserId);
+
 
     // Attach Add Account form handler
     const addForm = document.getElementById('addAccountForm');

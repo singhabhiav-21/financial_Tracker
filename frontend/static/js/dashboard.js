@@ -1,24 +1,53 @@
 // ==================== CONFIGURATION ====================
 const API_URL = 'http://localhost:8000';
-let currentUserId = null;
 let baseCurrency = 'USD';
 let weeklyChart = null;
 let selectedWeeks = 8; // Default to 8 weeks
 
 // ==================== AUTH CHECK ====================
-function checkAuth() {
-    currentUserId = parseInt(sessionStorage.getItem('user_id'));
-    baseCurrency = sessionStorage.getItem('base_currency') || 'USD';
-    console.log('User ID:', currentUserId, 'Currency:', baseCurrency);
+async function checkAuth() {
+    try {
+        const res = await fetch('/auth/status', {
+            credentials: 'include'
+        });
 
-    if (!currentUserId) {
-        alert('Please log in first');
-        window.location.href = '/';
+        // If explicitly unauthorized, redirect
+        if (res.status === 401) {
+            console.warn('🔒 Not authenticated (401), redirecting to login');
+            sessionStorage.clear();
+            localStorage.clear();
+            window.location.replace('/');
+            return false;
+        }
+
+        // If other error, don't redirect (network issues, etc)
+        if (!res.ok) {
+            console.error(`⚠️ Auth check failed: ${res.status}`);
+            return false;
+        }
+
+        const data = await res.json();
+
+        if (!data.authenticated || !data.user_id) {
+            console.warn('🔒 Not authenticated (no session), redirecting');
+            sessionStorage.clear();
+            localStorage.clear();
+            window.location.replace('/');
+            return false;
+        }
+
+        // ✅ Authenticated
+        console.log(`✅ Authenticated as user ${data.user_id}`);
+        baseCurrency = sessionStorage.getItem('base_currency') || 'USD';
+        return true;
+
+    } catch (err) {
+        console.error('❌ Auth check error:', err);
+        // Network errors shouldn't trigger redirect
+        // (might be temporary connection issue)
         return false;
     }
-    return true;
 }
-
 // ==================== UTILITY FUNCTIONS ====================
 function showMessage(message, type = 'success') {
     let container = document.getElementById('toast-container');
@@ -40,10 +69,18 @@ function showMessage(message, type = 'success') {
     setTimeout(() => toast.remove(), 3000);
 }
 
-function logout() {
+async function logout() {
+   await fetch('/logout', {
+        method: 'POST',
+        credentials: 'include'
+    });
+
     sessionStorage.clear();
+    localStorage.clear();
+
     window.location.href = '/';
 }
+
 
 function escapeHtml(text) {
     if (!text) return '';
@@ -246,65 +283,6 @@ function updateDateRangeDisplay(startDate, endDate) {
 }
 
 // ==================== WEEKLY DATA PROCESSING ====================
-function processWeeklyTransactions(transactions, weeks) {
-    if (!transactions || transactions.length === 0) return null;
-
-    const now = new Date();
-    const currentMonday = getMonday(now);
-
-    // Calculate start date based on selected weeks
-    const startDate = new Date(currentMonday);
-    startDate.setDate(startDate.getDate() - ((weeks - 1) * 7));
-
-    // Group by week
-    const weeklyData = {};
-
-    transactions.forEach(t => {
-        const date = new Date(t.transaction_date);
-
-        // Skip if transaction is before our start date
-        if (date < startDate) return;
-
-        const weekStart = getMonday(date);
-        const weekKey = weekStart.toISOString().split('T')[0];
-
-        if (!weeklyData[weekKey]) {
-            weeklyData[weekKey] = { income: 0, expenses: 0 };
-        }
-
-        const amount = parseFloat(t.amount || 0);
-        if (amount >= 0) {
-            weeklyData[weekKey].income += amount;
-        } else {
-            weeklyData[weekKey].expenses += Math.abs(amount);
-        }
-    });
-
-    // Convert to array and sort by date
-    const result = Object.entries(weeklyData)
-        .map(([date, data]) => ({ date, ...data }))
-        .sort((a, b) => new Date(a.date) - new Date(b.date));
-
-    // Update date range display
-    if (result.length > 0) {
-        const firstWeek = new Date(result[0].date);
-        const lastWeek = new Date(result[result.length - 1].date);
-        // Add 6 days to get end of last week
-        lastWeek.setDate(lastWeek.getDate() + 6);
-        updateDateRangeDisplay(firstWeek, lastWeek);
-    } else {
-        updateDateRangeDisplay(startDate, now);
-    }
-
-    return result;
-}
-
-function getMonday(date) {
-    const d = new Date(date);
-    const day = d.getDay();
-    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-    return new Date(d.setDate(diff));
-}
 
 // ==================== CHART RENDERING ====================
 function renderWeeklyChart(weeklyData) {
@@ -472,14 +450,13 @@ function updateChartSummary(income, expenses, net) {
 
 // ==================== LOAD DASHBOARD ====================
 async function loadDashboard() {
-    if (!currentUserId) return;
 
     console.log(`Loading dashboard in ${baseCurrency}...`);
 
     try {
-        const response = await fetch(
-            `${API_URL}/api/currency/dashboard/${currentUserId}?base_currency=${baseCurrency}`
-        );
+         const response = await fetch(
+        `/api/currency/dashboard?base_currency=${baseCurrency}`,
+        { credentials: 'include' });
 
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
@@ -503,8 +480,8 @@ async function loadDashboard() {
 async function loadWeeklyChart() {
     try {
         const response = await fetch(
-            `${API_URL}/api/weekly-chart/${currentUserId}?weeks=${selectedWeeks}&base_currency=${baseCurrency}`
-        );
+            `/api/weekly-chart?weeks=${selectedWeeks}&base_currency=${baseCurrency}`, {credentials :
+                    "include"});
 
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
@@ -525,7 +502,7 @@ async function loadWeeklyChart() {
             }
 
             // Update date range if provided
-            if (data.date_range && data.date_range.start && data.date_range.end) {
+            if (data.date_range?.start && data.date_range?.end) {
                 updateDateRangeDisplay(data.date_range.start, data.date_range.end);
             }
         } else {
@@ -633,18 +610,21 @@ function showConversionInfo(data) {
 }
 
 // ==================== INITIALIZATION ====================
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
     console.log('=== DASHBOARD INITIALIZED ===');
 
-    if (!checkAuth()) return;
+    // ✅ Single auth check at startup
+    const authenticated = await checkAuth();
+    if (!authenticated) {
+        console.warn('Auth failed, stopping initialization');
+        return; // Stop here, let the redirect happen
+    }
 
+    // ✅ Only initialize if authenticated
     if (typeof Chart === 'undefined') {
         const script = document.createElement('script');
         script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
-        script.onload = () => {
-            console.log('Chart.js loaded');
-            initializeDashboard();
-        };
+        script.onload = initializeDashboard;
         document.head.appendChild(script);
     } else {
         initializeDashboard();
@@ -652,9 +632,12 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function initializeDashboard() {
+    console.log('✅ Starting dashboard initialization...');
     addCurrencySelector();
     addWeekSelector();
     loadDashboard();
+
+    // ✅ Refresh every minute
     setInterval(loadDashboard, 60000);
 }
 

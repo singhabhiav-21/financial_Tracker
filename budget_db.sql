@@ -41,6 +41,8 @@ CREATE TABLE IF NOT EXISTS transactions(
     description VARCHAR(255),
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     transaction_date DATE,
+    balance decimal(15,2),
+    transaction_hash VARCHAR(250) NULL,
     FOREIGN KEY (user_id) references users(user_id),
     FOREIGN KEY (category_id) references category(category_id)
 );
@@ -56,7 +58,20 @@ CREATE TABLE IF NOT EXISTS budget(
     amount DECIMAL(10,2) NOT NULL CHECK(amount >= 0),
     FOREIGN KEY (user_id) references users(user_id),
     FOREIGN KEY (category_id) references  category(category_id)
-)
+);
+
+CREATE TABLE IF NOT EXISTS reports
+(
+    report_id         INT PRIMARY KEY AUTO_INCREMENT,
+    user_id           INT        NOT NULL,
+    report_month      VARCHAR(7) NOT NULL,
+    total_spending    DECIMAL(15, 2) DEFAULT 0,
+    transaction_count INT            DEFAULT 0,
+    generated_at      TIMESTAMP      DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users (user_id) ON DELETE CASCADE,
+    UNIQUE KEY unique_user_month (user_id, report_month),
+    INDEX idx_user_date (user_id, generated_at DESC)
+);
 
 
 
