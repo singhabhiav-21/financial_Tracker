@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS transactions(
     transaction_date DATE,
     balance decimal(15,2),
     transaction_hash VARCHAR(250) NULL,
+    CONSTRAINT uniq_user_tx UNIQUE (user_id, transaction_hash),
     FOREIGN KEY (user_id) references users(user_id),
     FOREIGN KEY (category_id) references category(category_id)
 );
