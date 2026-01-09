@@ -24,9 +24,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         setupUploadArea();
         setupFileInput();
 
+        const userRes = await fetch('/me', { credentials: 'include' });
+        if (userRes.ok) {
+            const user = await userRes.json();
+            document.getElementById('user-btn').textContent = user.email;
+        }
+
     } catch {
         console.error('BOOT ERROR:', err);
-    alert(err.message);
+    showMessage(err.message);
     }
 });
 
@@ -259,9 +265,7 @@ function formatFileSize(bytes) {
     return (bytes / Math.pow(1024, i)).toFixed(2) + ' ' + sizes[i];
 }
 
-function showMessage(msg, type = 'success') {
-    alert(msg); // simple student-project feedback
-}
+
 
 async function logout() {
     try {

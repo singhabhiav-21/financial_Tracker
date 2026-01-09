@@ -13,6 +13,7 @@ body {
     min-height: 100vh;
 }
 
+
 /* ==================== SIDEBAR ==================== */
 .sidebar {
     position: fixed;
@@ -69,6 +70,12 @@ body {
     border-left: 3px solid white;
 }
 
+.nav-item.disabled {
+    pointer-events: none;
+    opacity: 0.7;
+    cursor: default;
+}
+
 /* ==================== MAIN CONTENT ==================== */
 .main-content {
     flex: 1;
@@ -90,6 +97,8 @@ body {
     color: #1a202c;
     font-weight: 700;
 }
+
+
 
 /* ==================== BUTTONS ==================== */
 .btn {

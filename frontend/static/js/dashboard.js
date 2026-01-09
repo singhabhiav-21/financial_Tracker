@@ -1,8 +1,8 @@
 // ==================== CONFIGURATION ====================
 const API_URL = 'http://localhost:8000';
-let baseCurrency = 'USD';
+let baseCurrency = 'SEK';
 let weeklyChart = null;
-let selectedWeeks = 8; // Default to 8 weeks
+let selectedWeeks = 8;
 
 // ==================== AUTH CHECK ====================
 async function checkAuth() {
@@ -60,7 +60,7 @@ function showMessage(message, type = 'success') {
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
     toast.innerHTML = `
-        <span class="toast-icon">${type === 'error' ? '❌' : '✅'}</span>
+        <span class="toast-icon">${type === 'error' ? '' : ''}</span>
         <span class="toast-message">${message}</span>
         <span class="toast-close" onclick="this.parentElement.remove()">×</span>
     `;
@@ -204,12 +204,14 @@ function addWeekSelector() {
                     font-weight: 500;
                     min-width: 150px;
                 " onchange="changeWeekPeriod(this.value)">
+                    <option value="2">Last 2 Weeks</option>
                     <option value="4">Last 4 Weeks</option>
                     <option value="6">Last 6 Weeks</option>
                     <option value="8" selected>Last 8 Weeks</option>
                     <option value="10">Last 10 Weeks</option>
                     <option value="12">Last 12 Weeks</option>
                     <option value="16">Last 16 Weeks</option>
+                    <option value="18">Last 18 Weeks</option>                        
                 </select>
             </div>
             <div id="date-range-display" style="
@@ -428,7 +430,6 @@ function updateChartSummary(income, expenses, net) {
     if (!summaryDiv) return;
 
     const netColor = net >= 0 ? '#10b981' : '#ef4444';
-    const netIcon = net >= 0 ? '📈' : '📉';
 
     summaryDiv.innerHTML = `
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-top: 20px;">
@@ -441,7 +442,7 @@ function updateChartSummary(income, expenses, net) {
                 <div style="font-size: 20px; font-weight: 700; color: #ef4444;">${formatCurrency(expenses, baseCurrency)}</div>
             </div>
             <div style="background: ${net >= 0 ? '#f0fdf4' : '#fef2f2'}; padding: 15px; border-radius: 8px; border-left: 4px solid ${netColor};">
-                <div style="font-size: 12px; color: ${net >= 0 ? '#166534' : '#991b1b'}; font-weight: 600; margin-bottom: 5px;">${netIcon} NET AMOUNT</div>
+                <div style="font-size: 12px; color: ${net >= 0 ? '#166534' : '#991b1b'}; font-weight: 600; margin-bottom: 5px;">NET AMOUNT</div>
                 <div style="font-size: 20px; font-weight: 700; color: ${netColor};">${formatCurrency(net, baseCurrency)}</div>
             </div>
         </div>
@@ -620,6 +621,8 @@ document.addEventListener('DOMContentLoaded', async function() {
         return; // Stop here, let the redirect happen
     }
 
+
+
     // ✅ Only initialize if authenticated
     if (typeof Chart === 'undefined') {
         const script = document.createElement('script');
@@ -629,6 +632,11 @@ document.addEventListener('DOMContentLoaded', async function() {
     } else {
         initializeDashboard();
     }
+    const userRes = await fetch('/me', { credentials: 'include' });
+        if (userRes.ok) {
+            const user = await userRes.json();
+            document.getElementById('user-btn').textContent = user.email;
+        }
 });
 
 function initializeDashboard() {

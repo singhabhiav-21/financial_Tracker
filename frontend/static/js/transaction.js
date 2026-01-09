@@ -19,6 +19,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         loadTransactions();
+        const userRes = await fetch('/me', { credentials: 'include' });
+        if (userRes.ok) {
+            const user = await userRes.json();
+            document.getElementById('user-btn').textContent = user.email;
+        }
+
 
         const form = document.getElementById('addTransactionForm');
         if (form) form.addEventListener('submit', addTransaction);
@@ -50,8 +56,28 @@ window.onclick = e => {
 };
 
 // ==================== TOAST ====================
-function showMessage(msg, type = 'success') {
-    alert(msg); // simple + reliable for student project
+function showMessage(message, type = 'success') {
+const container = document.getElementById('toast-container');
+    if (!container) {
+        console.warn('Toast container missing:', message);
+        return;
+    }
+
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+
+    toast.innerHTML = `
+        <div class="toast-icon">
+            ${type === 'error' ? '❌' : '✅'}
+        </div>
+        <div class="toast-message">${escapeHtml(message)}</div>
+        <div class="toast-close">&times;</div>
+    `;
+
+    container.appendChild(toast);
+
+    toast.querySelector('.toast-close').onclick = () => toast.remove();
+    setTimeout(() => toast.remove(), 3000);
 }
 
 // ==================== LOAD TRANSACTIONS ====================
@@ -77,30 +103,52 @@ async function loadTransactions() {
         });
 
         let html = '';
-        Object.keys(grouped).sort().reverse().forEach(date => {
-            html += `<div class="transaction-date-group"><h3>${formatDate(date)}</h3>`;
 
-            grouped[date].forEach(t => {
-                const pos = Number(t.amount) > 0;
+        Object.keys(grouped)
+            .sort()
+            .reverse()
+            .forEach(date => {
                 html += `
-                <div class="transaction-card">
-                    <div class="transaction-main">
-                        <div>
-                            <div>${escapeHtml(t.name)}</div>
-                            ${t.description ? `<small>${escapeHtml(t.description)}</small>` : ''}
-                        </div>
-                        <div class="${pos ? 'positive' : 'negative'}">
-                            ${pos ? '+' : ''}${Math.abs(t.amount).toFixed(2)}kr 
-                        </div>
-                    </div>
-                    <div class="transaction-actions">
-                       <button class="btn-delete" onclick= "openDeleteModal(${t.transaction_id}, '${escapeHtml(t.name).replace(/'/g, "\\'")}', ${t.amount})">Delete</button>
-                    </div>
-                </div>`;
-            });
+                <div class="transaction-date-group">
+                    <h3>${formatDate(date)}</h3>
+                    <hr class="date-separator">
+                `;
 
-            html += '</div>';
-        });
+                grouped[date].forEach(t => {
+                    const amount = parseFloat(t.amount || 0);
+                    const isPositive = amount > 0;
+                    const sign = isPositive ? '+' : ''
+                    const color = isPositive ? '#10b981' : '#ef4444';
+                    const colorClass = isPositive ? 'positive' : 'negative';
+
+                    html += `
+                    <div class="transaction-card">
+                        <div class="transaction-main">
+                            <div>
+                                <div><strong>${escapeHtml(t.name)}</strong></div>
+                                ${t.description ? `<small>${escapeHtml(t.description)}</small>` : ''}
+                            </div>
+                            <div style="color:${color}">
+                                <strong>${sign}${Math.abs(amount).toFixed(2)}kr</strong>
+                            </div>
+                        </div>
+                        <div class="transaction-actions">
+                            <button
+                                class="btn-delete"
+                                onclick="openDeleteModal(
+                                    ${t.transaction_id},
+                                    '${escapeHtml(t.name).replace(/'/g, "\\'")}',
+                                    ${amount}
+                                )">
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                    `;
+                });
+
+                html += '</div>';
+            });
 
         list.innerHTML = html;
 

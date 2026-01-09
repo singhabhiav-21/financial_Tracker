@@ -73,7 +73,7 @@ function showMessage(message, type = 'success') {
         if (toast.parentElement) {
             toast.remove();
         }
-    }, 3000);
+    }, 5000);
 }
 
 async function logout() {
@@ -167,7 +167,7 @@ async function loadAccounts() {
                 <div class="account-details">
                     <div class="detail-row">
                         <span class="detail-label">Account Type:</span>
-                        <span class="detail-value">${escapeHtml(a.account_type)}</span>
+                        <span class="detail-value">${escapeHtml(capitalizeFirstWord(a.account_type))}</span>
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">Currency:</span>
@@ -203,6 +203,10 @@ async function loadAccounts() {
         }
         showMessage(`Failed to load accounts: ${error.message}`, 'error');
     }
+}
+
+function capitalizeFirstWord(str) {
+    return str.replace(/^\w+/, w => w.charAt(0).toUpperCase() + w.slice(1));
 }
 
 async function handleAddAccount(e) {
@@ -545,7 +549,7 @@ async function handleUpdateAccount(e) {
 
 console.log('✅ Account update functionality loaded');
 // ==================== INITIALIZATION ====================
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
     console.log('=== ACCOUNTS PAGE INITIALIZED ===');
 
     if (!checkAuth()) {
@@ -590,6 +594,11 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     loadAccounts();
+    const userRes = await fetch('/me', { credentials: 'include' });
+        if (userRes.ok) {
+            const user = await userRes.json();
+            document.getElementById('user-btn').textContent = user.email;
+        }
 });
 
 

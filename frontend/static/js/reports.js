@@ -21,8 +21,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             window.location.href = '/';
             return;
         }
-
         initPage();
+
+        const userRes = await fetch('/me', { credentials: 'include' });
+        if (userRes.ok) {
+            const user = await userRes.json();
+            document.getElementById('user-btn').textContent = user.email;
+        }
 
     } catch (err) {
         window.location.href = '/';
