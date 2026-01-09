@@ -1,6 +1,8 @@
 from financial_Tracker.databaseDAO.sqlConnector import get_connection
+from mysql.connector import Error
 import pandas as pd
 import hashlib
+from decimal import Decimal,InvalidOperation
 
 from financial_Tracker.databaseDAO.transaction.transaction_DAO import register_transaction
 
@@ -18,32 +20,13 @@ class bankImporter:
         self.duplicate_count = 0
 
     def _generate_hash(self, transaction):
-        return hashlib.sha256(transaction.encode()).hexdigest()[:16]
+        return hashlib.sha256(transaction.encode()).hexdigest()
 
     def _clean_amount(self, amount):
         if pd.isna(amount):
-            return 0.0
+            raise ValueError("Amount is missing")
         amount_clean = str(amount).replace(',', '').strip()
-        return float(amount_clean)
-
-    def _check_duplicate(self, transaction_hash):
-        """Check if transaction hash already exists for this user in database"""
-        query = """
-                SELECT COUNT(*)
-                FROM transactions
-                WHERE user_id = %s \
-                  AND transaction_hash = %s \
-                """
-        try:
-            # Use a separate cursor to avoid "Unread result found" error
-            check_cursor = conn.cursor()
-            check_cursor.execute(query, (self.user_id, transaction_hash))
-            result = check_cursor.fetchone()  # Fixed typo: was "fecthone"
-            check_cursor.close()
-            return result[0] > 0
-        except Exception as e:
-            print(f"Error checking duplicate: {e}")
-            return False
+        return amount_clean
 
     def import_csv(self, file_path: str):
         try:
@@ -83,7 +66,6 @@ class bankImporter:
                 na_count = file[col].isna().sum()
                 print(f"  {col}: {na_count} NA values")
 
-            # Drop rows where any required column is empty
             initial_count = len(file)
             file = file.dropna(subset=required_columns)
             dropped_count = initial_count - len(file)
@@ -103,18 +85,25 @@ class bankImporter:
                         if pd.isna(row['Text']) or str(row["Text"]).strip() == "":
                             print(f"Row {index}: Skipping - missing description")
                             continue
-                        description = str(row["Text"]).strip()
+                        get_description = str(row["Text"])
+                        try:
+                            description = " ".join(get_description.lower().split())
+                        except Exception as e:
+                            print(f"Row {index}: Error reading description - {e}")
+                            continue
                     except KeyError:
                         print(f"Row {index}: Missing 'Text' column")
-                        continue
-                    except Exception as e:
-                        print(f"Row {index}: Error reading description - {e}")
                         continue
                     try:
                         if pd.isna(row['Amount']):
                             print(f"Row{index}:: Skipping - missing amount")
                             continue
-                        amount = self._clean_amount(row['Amount'])
+                        get_amount = self._clean_amount(row['Amount'])
+                        try:
+                            amount = Decimal(str(get_amount)).quantize(Decimal("0.01"))
+                        except (InvalidOperation, ValueError) as e:
+                            print(f"Row {index}: Invalid amount '{raw_amount}' - {e}")
+                            continue
                     except KeyError:
                         print(f"Row {index}: Missing 'Amount' column")
                         continue
@@ -128,22 +117,25 @@ class bankImporter:
                         if pd.isna(row["Value date"]):
                             print(f"Row {index}: Skipping - missing date for '{description[:30]}'")
                             continue
-                        transaction_date = row["Value date"]
+                        date = row["Value date"]
+                        try:
+                            transaction_date = pd.to_datetime(date, errors="raise").strftime("%Y-%m-%d")
+                        except Exception:
+                            print(f"Invalid date format: {date}")
+                            continue
                     except KeyError:
                         print(f"Row {index}: Missing 'Value date' column")
                         continue
                     except Exception as e:
                         print(f"Row {index}: Invalid date format for '{description[:30]}' - {e}")
                         continue
-
-                    # Handle Balance column - it may not exist in all CSVs
                     try:
                         balance = self._clean_amount(row['Balance']) if 'Balance' in row else 0.0
                     except:
                         balance = 0.0
 
                     # Include user_id in the hash
-                    hash_key = f"{self.user_id}|{description}|{amount:.2f}|{transaction_date}|{balance:.2f}"
+                    hash_key = f"{self.user_id}|{description}|{amount:.2f}|{transaction_date}"
                     transaction_hash = self._generate_hash(hash_key)
 
                     if self.imported_count < 5:  # Only show first 5 for testing
@@ -151,29 +143,27 @@ class bankImporter:
                         print(f"Hash key: {hash_key}")
                         print(f"Hash: {transaction_hash}")
 
-                    # Check database for duplicate
-                    if self._check_duplicate(transaction_hash):
-                        self.duplicate_count += 1
-                        if self.imported_count < 5:
-                            print(f"Is duplicate? True (found in database)")
-                        continue
-
-                    if self.imported_count < 5:
-                        print(f"Is duplicate? False (not in database)")
-
-                    new_transaction = register_transaction(
-                        user_id=self.user_id,
-                        category_id=self.category_id,
-                        name=description[:25],
-                        amount=amount,
-                        description=description[:225],
-                        transaction_date=transaction_date,
-                        balance=balance,
-                        transaction_hash=transaction_hash,
-                    )
-                    if new_transaction:
-                        self.imported_count += 1
-                        print(f"{'CREDIT' if amount > 0 else 'DEBIT'}: {description[:40]} | {amount:.2f}kr")
+                    try:
+                        new_transaction = register_transaction(
+                            user_id=self.user_id,
+                            category_id=self.category_id,
+                            name=description[:25],
+                            amount=amount,
+                            description=description[:225],
+                            transaction_date=transaction_date,
+                            balance=balance,
+                            transaction_hash=transaction_hash,
+                        )
+                        if new_transaction:
+                            self.imported_count += 1
+                            print(f"{'CREDIT' if amount > 0 else 'DEBIT'}: {description[:40]} | {amount:.2f}kr")
+                    except Error as e:
+                        if e.errno == 1062:
+                            self.duplicate_count += 1
+                            print(f"Duplicate transaction skipped (DB constraint): {description[:40]}")
+                        else:
+                            print(f"Database error for transaction '{description[:40]}': {e}")
+                            raise
 
                 except Exception as e:
                     print(f"Error processing transaction: {e}")
@@ -191,4 +181,4 @@ class bankImporter:
 
         except Exception as e:
             print(f"Error: {e}")
-            return False
+            raise
