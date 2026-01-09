@@ -298,6 +298,14 @@ async def login_endpoint(request: Request, response: Response, data: LoginReques
     }
 
 
+@app.get("/me")
+async def get_me(request: Request, current_user:int =Depends(get_current_user)):
+    return  {
+        "user_id": current_user,
+        "email": request.session.get("email")
+    }
+
+
 @app.post("/register")
 async def register_endpoint(
         data: RegisterRequest,
