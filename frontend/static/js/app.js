@@ -205,7 +205,7 @@ async function handleRegister(e) {
     messageDiv.style.display = 'none';
 
     try {
-        const response = await fetch('register', {
+        const response = await fetch('/register', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

@@ -1,8 +1,6 @@
 from databaseDAO.sqlConnector import get_connection
 
 
-
-
 def register_transaction(user_id, category_id, name, amount, description, transaction_date=None, balance=None, transaction_hash = None):
     conn = get_connection()
     cursor = conn.cursor()
