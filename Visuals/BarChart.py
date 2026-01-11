@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from ..databaseDAO.sqlConnector import get_connection
+from databaseDAO.sqlConnector import get_connection
 
 conn = get_connection()
 cursor = conn.cursor()

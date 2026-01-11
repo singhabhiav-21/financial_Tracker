@@ -7,7 +7,7 @@ from reportlab.graphics.shapes import Drawing
 from reportlab.graphics.charts.linecharts import HorizontalLineChart
 from reportlab.lib.enums import TA_CENTER
 from datetime import datetime
-from ..databaseDAO.sqlConnector import get_connection
+from databaseDAO.sqlConnector import get_connection
 
 conn = get_connection()
 cursor = conn.cursor()

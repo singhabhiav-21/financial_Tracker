@@ -1,4 +1,4 @@
-from ..sqlConnector import get_connection
+from qlConnector import get_connection
 from mysql.connector import Error
 import pandas as pd
 import hashlib

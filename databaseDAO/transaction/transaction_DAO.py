@@ -1,4 +1,4 @@
-from ..sqlConnector import get_connection
+from sqlConnector import get_connection
 
 conn = get_connection()
 cursor = conn.cursor()

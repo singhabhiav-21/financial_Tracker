@@ -1,4 +1,4 @@
-from ..databaseDAO.sqlConnector import get_connection
+from databaseDAO.sqlConnector import get_connection
 import hashlib
 import os
 from datetime import datetime, timedelta
