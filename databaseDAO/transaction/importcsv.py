@@ -6,8 +6,6 @@ from decimal import Decimal,InvalidOperation
 
 from databaseDAO.transaction.transaction_DAO import register_transaction
 
-conn = get_connection()
-cursor = conn.cursor()
 
 
 class bankImporter:
@@ -29,6 +27,9 @@ class bankImporter:
         return amount_clean
 
     def import_csv(self, file_path: str):
+        conn = get_connection()
+        cursor = conn.cursor()
+
         try:
             # Read CSV with flexible parsing - handle various delimiters and quoted headers
             file = pd.read_csv(file_path, sep=None, engine='python', skipinitialspace=True, quotechar='"')

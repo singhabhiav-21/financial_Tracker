@@ -1,12 +1,12 @@
 from databaseDAO.sqlConnector import get_connection
 from databaseDAO.userDAO import hashAgain
 
-conn = get_connection()
-cursor = conn.cursor()
-
 
 def addAccount(userid, name, type, balance, currency, platform_name):
     """Add a new account for a user"""
+    conn = get_connection()
+    cursor = conn.cursor()
+
     balance, balance_msg = check_balance(balance)
     if balance is False:
         print(f"Balance validation failed: {balance_msg}")
@@ -72,6 +72,9 @@ def delete_account(current_user_id: int, account_id: int, password: str) -> bool
     Returns:
         bool: True if deleted successfully, False otherwise
     """
+    conn = get_connection()
+    cursor = conn.cursor()
+
     try:
         query = """
                 SELECT user_id
@@ -130,6 +133,9 @@ def delete_account(current_user_id: int, account_id: int, password: str) -> bool
 
 def update_account(account_id, userid, name=None, accountType=None, balance=None, currency=None, platform_name=None):
     """Update an existing account"""
+    conn = get_connection()
+    cursor = conn.cursor()
+
     try:
         query = "SELECT * FROM account WHERE account_id = %s AND user_id = %s"
         cursor.execute(query, (account_id, userid))
@@ -192,6 +198,11 @@ def update_account(account_id, userid, name=None, accountType=None, balance=None
 
 def add_money(user_id, account_id, credits: int):
     """Add money to an account"""
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+
     if not isinstance(credits, (int, float)):
         print("Amount must be a number")
         return False
@@ -213,6 +224,9 @@ def add_money(user_id, account_id, credits: int):
 
 
 def transfer_money(user_id, account_id1, account_id2, credits: int):
+    conn = get_connection()
+    cursor = conn.cursor()
+
     try:
         query = "SELECT account_balance FROM account WHERE account_id = %s AND user_id = %s"
         cursor.execute(query, (account_id1, user_id))

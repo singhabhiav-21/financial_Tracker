@@ -11,5 +11,7 @@ def get_connection():
         port=int(os.getenv('DB_PORT', '3306')),
         user=os.getenv('DB_USER', os.environ.get("MYSQL_USER")),
         password=os.getenv('DB_PASSWORD', os.environ.get("MYSQL_PASSWORD")),
-        database=os.getenv('DB_NAME', os.environ.get("MYSQL_DB"))
+        database=os.getenv('DB_NAME', os.environ.get("MYSQL_DB")),
+        pool_name="mypool",
+        pool_size=3
     )

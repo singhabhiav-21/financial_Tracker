@@ -3,14 +3,15 @@ import hashlib
 import os
 from datetime import datetime, timedelta
 
-conn = get_connection()
-cursor = conn.cursor()
 
 # Rate limiting dictionary (in production, use Redis)
 login_attempts = {}
 
 
 def register(name, email, password):
+    conn = get_connection()
+    cursor = conn.cursor()
+
     query = "INSERT INTO users(name, email, password) VALUES (%s,%s,%s)"
 
     namecheck = nameChecker(name)
@@ -31,6 +32,9 @@ def register(name, email, password):
         return True, "User registered successfully."
 
 def isEmail(email):
+    conn = get_connection()
+    cursor = conn.cursor()
+
     query = "SELECT * FROM users WHERE email = %s"
     cursor.execute(query, (email,))
     if cursor.fetchone() is not None:
@@ -124,6 +128,9 @@ def logIn(email, password):
         return False, None
 
     try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
         salt = passwordSalt(email)
         if not salt:
             print("The email or password is incorrect!")
@@ -155,6 +162,9 @@ def logIn(email, password):
 
 
 def passwordSalt(email):
+    conn = get_connection()
+    cursor = conn.cursor()
+
     query = "SELECT password FROM users WHERE email = %s"
     cursor.execute(query, (email,))
     result = cursor.fetchone()
@@ -169,6 +179,9 @@ def hashAgain(salt, password):
     return hashed
 
 def update_userinfo(email=None, name=None, new_email=None):
+    conn = get_connection()
+    cursor = conn.cursor()
+
     query = "SELECT user_id FROM users WHERE email = %s"
     cursor.execute(query, (email,))
     row = cursor.fetchone()
@@ -204,6 +217,9 @@ def update_userinfo(email=None, name=None, new_email=None):
 
 
 def update_password(email, old_password, password, re_password):
+    conn = get_connection()
+    cursor = conn.cursor()
+
     query = "SELECT password FROM users WHERE email = %s"
     cursor.execute(query, (email,))
     row = cursor.fetchone()

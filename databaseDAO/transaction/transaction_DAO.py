@@ -1,10 +1,12 @@
 from databaseDAO.sqlConnector import get_connection
 
-conn = get_connection()
-cursor = conn.cursor()
+
 
 
 def register_transaction(user_id, category_id, name, amount, description, transaction_date=None, balance=None, transaction_hash = None):
+    conn = get_connection()
+    cursor = conn.cursor()
+
     query = "INSERT INTO transactions (user_id, category_id, name, amount, description, transaction_date,balance,transaction_hash) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)"
     cursor.execute(query, (user_id, category_id, name, amount, description, transaction_date,balance, transaction_hash))
     conn.commit()
@@ -13,6 +15,9 @@ def register_transaction(user_id, category_id, name, amount, description, transa
 
 
 def delete_transaction(transaction_id, user_id):
+    conn = get_connection()
+    cursor = conn.cursor()
+
     query = "DELETE FROM transactions WHERE transaction_id = %s AND user_id = %s"
     cursor.execute(query, (transaction_id, user_id,))
     conn.commit()
@@ -21,6 +26,9 @@ def delete_transaction(transaction_id, user_id):
 
 
 def update_transaction(transaction_id, user_id, category_id=None, name=None, amount=None, description=None):
+    conn = get_connection()
+    cursor = conn.cursor()
+
     query = "SELECT * FROM transactions WHERE transaction_id = %s AND user_id = %s"
     cursor.execute(query, (transaction_id, user_id,))
     row = cursor.fetchone()
@@ -66,6 +74,9 @@ def update_transaction(transaction_id, user_id, category_id=None, name=None, amo
 
 
 def get_transactions(user_id):
+    conn = get_connection()
+    cursor = conn.cursor()
+
     query = "SELECT * FROM transactions WHERE user_id = %s"
     cursor.execute(query, (user_id,))
     rows = cursor.fetchall()
@@ -76,6 +87,9 @@ def get_transactions(user_id):
 
 
 def get_transaction(transaction_id, user_id):
+    conn = get_connection()
+    cursor = conn.cursor()
+
     query = "SELECT name, amount, description, created_at FROM transactions WHERE transaction_id = %s AND user_id = %s"
     cursor.execute(query, (transaction_id, user_id))
     row = cursor.fetchone()

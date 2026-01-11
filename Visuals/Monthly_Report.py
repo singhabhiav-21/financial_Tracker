@@ -9,14 +9,15 @@ from reportlab.lib.enums import TA_CENTER
 from datetime import datetime
 from databaseDAO.sqlConnector import get_connection
 
-conn = get_connection()
-cursor = conn.cursor()
 
 
 def get_data(user_id, month):
     if not user_exists(user_id):
         print(f"User with ID {user_id} does not exist!")
         return None
+
+    conn = get_connection()
+    cursor = conn.cursor()
 
     query = """
             SELECT transaction_date,
@@ -54,6 +55,9 @@ def get_data(user_id, month):
 
 
 def user_exists(user_id):
+    conn = get_connection()
+    cursor = conn.cursor()
+
     query = "SELECT 1 FROM users WHERE user_id = %s"
     cursor.execute(query, (user_id,))
     result = cursor.fetchone()

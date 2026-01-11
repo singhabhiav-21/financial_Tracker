@@ -4,12 +4,13 @@ import pandas as pd
 
 from databaseDAO.sqlConnector import get_connection
 
-conn = get_connection()
-cursor = conn.cursor()
 
 
 def weekly_expenses(user, weeks=12):
     """Fetch transactions for a user within the specified number of weeks"""
+    conn = get_connection()
+    cursor = conn.cursor()
+
     query = """
             SELECT DATE (transaction_date) as date, amount
             FROM transactions
