@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS account(
     account_balance DECIMAL(12,2),
     currency VARCHAR(10) NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    platform_name VARCHAR(50) NULL,
     foreign key (user_id) references users(user_id)
 );
 
