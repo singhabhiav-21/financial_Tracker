@@ -16,24 +16,24 @@ import re
 from dotenv import load_dotenv
 
 # DAO imports
-from financial_Tracker.databaseDAO.userDAO import logIn, register, update_userinfo, update_password
-from financial_Tracker.databaseDAO.Account.account_dao import (
+from databaseDAO.userDAO import logIn, register, update_userinfo, update_password
+from databaseDAO.Account.account_dao import (
     addAccount, delete_account, update_account,
     add_money, transfer_money
 )
-from financial_Tracker.databaseDAO.transaction.transaction_DAO import (
+from databaseDAO.transaction.transaction_DAO import (
     register_transaction, delete_transaction, update_transaction,
     get_transaction
 )
-from financial_Tracker.databaseDAO.transaction.importcsv import bankImporter
+from databaseDAO.transaction.importcsv import bankImporter
 
 # Currency imports
-from financial_Tracker.Visuals.ExchangeRates import get_currency_converter
-from financial_Tracker.databaseDAO.sqlConnector import get_connection
-from financial_Tracker.Visuals.BarChart import weekly_expenses, incoming_funds, outgoing_funds
+from Visuals.ExchangeRates import get_currency_converter
+from databaseDAO.sqlConnector import get_connection
+from Visuals.BarChart import weekly_expenses, incoming_funds, outgoing_funds
 import pandas as pd
 
-from financial_Tracker.Visuals.Monthly_Report import make_report, get_data
+from Visuals.Monthly_Report import make_report, get_data
 
 app = FastAPI()
 load_dotenv()
