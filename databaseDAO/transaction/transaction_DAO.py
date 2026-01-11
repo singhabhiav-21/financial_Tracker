@@ -1,5 +1,4 @@
-from financial_Tracker.databaseDAO.sqlConnector import get_connection
-import datetime
+from ..sqlConnector import get_connection
 
 conn = get_connection()
 cursor = conn.cursor()

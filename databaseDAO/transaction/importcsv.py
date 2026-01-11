@@ -1,10 +1,10 @@
-from financial_Tracker.databaseDAO.sqlConnector import get_connection
+from ..sqlConnector import get_connection
 from mysql.connector import Error
 import pandas as pd
 import hashlib
 from decimal import Decimal,InvalidOperation
 
-from financial_Tracker.databaseDAO.transaction.transaction_DAO import register_transaction
+from ..transaction.transaction_DAO import register_transaction
 
 conn = get_connection()
 cursor = conn.cursor()

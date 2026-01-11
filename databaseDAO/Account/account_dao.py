@@ -1,5 +1,5 @@
-from financial_Tracker.databaseDAO.sqlConnector import get_connection
-from financial_Tracker.databaseDAO.userDAO import hashAgain
+from ..sqlConnector import get_connection
+from ..userDAO import hashAgain
 
 conn = get_connection()
 cursor = conn.cursor()

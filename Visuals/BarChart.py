@@ -1,7 +1,8 @@
 import matplotlib.pyplot as plt
-from financial_Tracker.databaseDAO.sqlConnector import get_connection
 import numpy as np
 import pandas as pd
+
+from ..databaseDAO.sqlConnector import get_connection
 
 conn = get_connection()
 cursor = conn.cursor()

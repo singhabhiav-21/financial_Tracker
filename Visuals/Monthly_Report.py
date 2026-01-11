@@ -1,16 +1,13 @@
-from reportlab.lib.pagesizes import letter, A4
+from reportlab.lib.pagesizes import letter
 import pandas as pd
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
-from reportlab.lib.units import inch
-from reportlab.graphics.shapes import Drawing, Rect, String
+from reportlab.graphics.shapes import Drawing
 from reportlab.graphics.charts.linecharts import HorizontalLineChart
-from reportlab.graphics.charts.piecharts import Pie
-from reportlab.graphics.charts.barcharts import VerticalBarChart
-from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
+from reportlab.lib.enums import TA_CENTER
 from datetime import datetime
-from financial_Tracker.databaseDAO.sqlConnector import get_connection
+from ..databaseDAO.sqlConnector import get_connection
 
 conn = get_connection()
 cursor = conn.cursor()
