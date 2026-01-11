@@ -1,4 +1,4 @@
-from databaseDAO.sqlConnector import get_connection()
+from databaseDAO.sqlConnector import get_connection
 from datbaseDAO.userDAO import hashAgain
 
 conn = get_connection()
