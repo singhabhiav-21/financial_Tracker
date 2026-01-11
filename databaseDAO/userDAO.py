@@ -9,39 +9,60 @@ login_attempts = {}
 
 
 def register(name, email, password):
-    conn = get_connection()
-    cursor = conn.cursor()
+    conn = None
+    cursor = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
 
-    query = "INSERT INTO users(name, email, password) VALUES (%s,%s,%s)"
+        query = "INSERT INTO users(name, email, password) VALUES (%s,%s,%s)"
 
-    namecheck = nameChecker(name)
-    emailcheck = isEmail(email)
-    passwordcheck = checkpassword(password)
+        namecheck = nameChecker(name)
+        emailcheck = isEmail(email)
+        passwordcheck = checkpassword(password)
 
-    # NOW CHECK THE FIRST ELEMENT OF THE TUPLE
-    if not emailcheck[0]:
-        return emailcheck
-    if not passwordcheck[0]:
-        return passwordcheck
-    if not namecheck[0]:
-        return namecheck
-    else:
-        hashedpw = hashpassword(password)
-        cursor.execute(query, (name, email, hashedpw,))
-        conn.commit()
-        return True, "User registered successfully."
+        # NOW CHECK THE FIRST ELEMENT OF THE TUPLE
+        if not emailcheck[0]:
+            return emailcheck
+        if not passwordcheck[0]:
+            return passwordcheck
+        if not namecheck[0]:
+            return namecheck
+        else:
+            hashedpw = hashpassword(password)
+            cursor.execute(query, (name, email, hashedpw,))
+            conn.commit()
+            return True, "User registered successfully."
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        raise e
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
 
 def isEmail(email):
-    conn = get_connection()
-    cursor = conn.cursor()
+    conn = None
+    cursor = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
 
-    query = "SELECT * FROM users WHERE email = %s"
-    cursor.execute(query, (email,))
-    if cursor.fetchone() is not None:
-        print("This email is already registered. Please use a new email or continue with the current one.")
-        return False, "Email already registered"
-    else:
-        return True, "Email available"
+        query = "SELECT * FROM users WHERE email = %s"
+        cursor.execute(query, (email,))
+        if cursor.fetchone() is not None:
+            print("This email is already registered. Please use a new email or continue with the current one.")
+            return False, "Email already registered"
+        else:
+            return True, "Email available"
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 
 def hashpassword(password):
@@ -58,21 +79,21 @@ def checkpassword(password):
 
     if len(password) < 8:
         print("The password is too short, the password length should be larger than 8.")
-        return False, "Password too short"  # ADD THE MESSAGE
+        return False, "Password too short"
 
     if not any(c in special for c in password):
         print("The password does not contain any special symbols e.g. '!#€...'. ")
-        return False, "Missing special character"  # ADD THE MESSAGE
+        return False, "Missing special character"
     if not any(c in lower for c in password):
         print("The password does not contain any small letters e.g. 'abc...'.")
-        return False, "Missing lowercase letter"  # ADD THE MESSAGE
+        return False, "Missing lowercase letter"
     if not any(c in upper for c in password):
         print("The password does not contain any capital letters e.g. 'ABC....'. ")
-        return False, "Missing uppercase letter"  # ADD THE MESSAGE
+        return False, "Missing uppercase letter"
     if not any(c in num for c in password):
         print("The password does not contain any numbers e.g. '123....'. ")
-        return False, "Missing number"  # ADD THE MESSAGE
-    return True, "Password valid"  # ADD THE MESSAGE
+        return False, "Missing number"
+    return True, "Password valid"
 
 
 def nameChecker(name):
@@ -80,17 +101,17 @@ def nameChecker(name):
 
     if len(newname) < 5:
         print("The name is too short.")
-        return False, "Name too short"  # ADD THE MESSAGE
+        return False, "Name too short"
 
     special = "!#€%&/()=?^*_:;©@£$∞§|[]≈±´~™''æ…‚§¶°"
     num = "1234567890"
 
     if any(c in special for c in newname):
         print("No special characters are allowed.")
-        return False, "No special characters allowed"  # ADD THE MESSAGE
+        return False, "No special characters allowed"
     if any(c in num for c in newname):
         print("No numbers are allowed in Name.")
-        return False, "No numbers allowed"  # ADD THE MESSAGE
+        return False, "No numbers allowed"
     return True, "Name valid"
 
 
@@ -127,6 +148,8 @@ def logIn(email, password):
     if not check_rate_limit(email):
         return False, None
 
+    conn = None
+    cursor = None
     try:
         conn = get_connection()
         cursor = conn.cursor()
@@ -159,92 +182,130 @@ def logIn(email, password):
     except Exception as e:
         print("Database error: ", str(e))
         return False, None
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 
 def passwordSalt(email):
-    conn = get_connection()
-    cursor = conn.cursor()
+    conn = None
+    cursor = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
 
-    query = "SELECT password FROM users WHERE email = %s"
-    cursor.execute(query, (email,))
-    result = cursor.fetchone()
-    if not result:
-        return None
-    salt, _ = result[0].split(":")
-    return salt
+        query = "SELECT password FROM users WHERE email = %s"
+        cursor.execute(query, (email,))
+        result = cursor.fetchone()
+        if not result:
+            return None
+        salt, _ = result[0].split(":")
+        return salt
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 
 def hashAgain(salt, password):
     hashed = hashlib.sha256((salt + password).encode()).hexdigest()
     return hashed
 
+
 def update_userinfo(email=None, name=None, new_email=None):
-    conn = get_connection()
-    cursor = conn.cursor()
+    conn = None
+    cursor = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
 
-    query = "SELECT user_id FROM users WHERE email = %s"
-    cursor.execute(query, (email,))
-    row = cursor.fetchone()
-    if not row:
-        print("The user does not exist")
-        return False
-
-    update = []
-    value = []
-
-    if name:
-        namecheck = nameChecker(name)
-        if not namecheck[0]:  # CHANGE THIS LINE
-            print("invalid name")
+        query = "SELECT user_id FROM users WHERE email = %s"
+        cursor.execute(query, (email,))
+        row = cursor.fetchone()
+        if not row:
+            print("The user does not exist")
             return False
-        update.append("name = %s")
-        value.append(name)
 
-    if new_email:
-        emailcheck = isEmail(new_email)
-        if not emailcheck[0]:  # CHANGE THIS LINE
-            print("invalid email")
-            return False
-        update.append("email = %s")
-        value.append(new_email)
+        update = []
+        value = []
 
-    value.append(email)
-    query = f"UPDATE users SET {', '.join(update)} WHERE email = %s"
-    cursor.execute(query, tuple(value))
-    conn.commit()
-    print("User information updated successfully.")
-    return True
+        if name:
+            namecheck = nameChecker(name)
+            if not namecheck[0]:
+                print("invalid name")
+                return False
+            update.append("name = %s")
+            value.append(name)
+
+        if new_email:
+            emailcheck = isEmail(new_email)
+            if not emailcheck[0]:
+                print("invalid email")
+                return False
+            update.append("email = %s")
+            value.append(new_email)
+
+        value.append(email)
+        query = f"UPDATE users SET {', '.join(update)} WHERE email = %s"
+        cursor.execute(query, tuple(value))
+        conn.commit()
+        print("User information updated successfully.")
+        return True
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        raise e
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
 
 
 def update_password(email, old_password, password, re_password):
-    conn = get_connection()
-    cursor = conn.cursor()
+    conn = None
+    cursor = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
 
-    query = "SELECT password FROM users WHERE email = %s"
-    cursor.execute(query, (email,))
-    row = cursor.fetchone()
-    if not row:
-        print("The user does not exist!")
-        return False
-
-    storedPw = row[0]
-    old_salt, realhashPw = storedPw.split(":")
-    oldPassword_hash = hashAgain(old_salt, old_password)
-
-    if oldPassword_hash != realhashPw:
-        print("The password is incorrect!")
-        return False
-    else:
-        newPasswordCheck = checkpassword(password)
-        if not newPasswordCheck[0]:  # CHANGE THIS LINE
+        query = "SELECT password FROM users WHERE email = %s"
+        cursor.execute(query, (email,))
+        row = cursor.fetchone()
+        if not row:
+            print("The user does not exist!")
             return False
-        if password != re_password:
-            print("The password input does not match the given password")
+
+        storedPw = row[0]
+        old_salt, realhashPw = storedPw.split(":")
+        oldPassword_hash = hashAgain(old_salt, old_password)
+
+        if oldPassword_hash != realhashPw:
+            print("The password is incorrect!")
             return False
         else:
-            query = "UPDATE users SET password = %s WHERE email = %s"
-            newPassword_hash = hashpassword(password)
-            cursor.execute(query, (newPassword_hash, email,))
-            conn.commit()
-            print("The password has been successfully changed!")
-            return True
+            newPasswordCheck = checkpassword(password)
+            if not newPasswordCheck[0]:
+                return False
+            if password != re_password:
+                print("The password input does not match the given password")
+                return False
+            else:
+                query = "UPDATE users SET password = %s WHERE email = %s"
+                newPassword_hash = hashpassword(password)
+                cursor.execute(query, (newPassword_hash, email,))
+                conn.commit()
+                print("The password has been successfully changed!")
+                return True
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        raise e
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
