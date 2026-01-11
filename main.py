@@ -46,7 +46,7 @@ if not SECRET_KEY:
 # 1. CORS first (executes last)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:8000"],
+    allow_origins=["*"],
     allow_credentials=True,  # ← Must be True for cookies
     allow_methods=["*"],
     allow_headers=["*"],
