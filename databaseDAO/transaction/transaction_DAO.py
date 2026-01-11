@@ -1,4 +1,4 @@
-from datbaseDAO.sqlConnector import get_connection
+from databaseDAO.sqlConnector import get_connection
 
 conn = get_connection()
 cursor = conn.cursor()

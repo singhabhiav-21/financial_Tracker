@@ -1,4 +1,4 @@
-from datbaseDAO.sqlConnector import get_connection
+from databaseDAO.sqlConnector import get_connection
 from mysql.connector import Error
 import pandas as pd
 import hashlib
