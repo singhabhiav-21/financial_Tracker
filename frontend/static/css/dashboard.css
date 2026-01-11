@@ -73,6 +73,7 @@ body {
     pointer-events: none;
     opacity: 0.7;
     cursor: default;
+    color: white;
 }
 
 /* ==================== MAIN CONTENT ==================== */

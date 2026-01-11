@@ -25,7 +25,7 @@ class ExchangeRates:
         """
         # Check if cache is still valid
         if self._is_cache_valid() and self.cache.get('base') == base_currency:
-            print(f"✅ Using cached rates for {base_currency}")
+            print(f"Using cached rates for {base_currency}")
             return self.cache.get('rates', {})
 
         # Fetch new rates
