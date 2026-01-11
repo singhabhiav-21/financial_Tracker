@@ -1,10 +1,10 @@
-from qlConnector import get_connection
+from datbaseDAO.sqlConnector import get_connection
 from mysql.connector import Error
 import pandas as pd
 import hashlib
 from decimal import Decimal,InvalidOperation
 
-from ..transaction.transaction_DAO import register_transaction
+from transaction.transaction_DAO import register_transaction
 
 conn = get_connection()
 cursor = conn.cursor()

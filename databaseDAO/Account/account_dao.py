@@ -1,5 +1,5 @@
-from sqlConnector import get_connection
-from userDAO import hashAgain
+from databaseDAO.sqlConnector import get_connection()
+from datbaseDAO.userDAO import hashAgain
 
 conn = get_connection()
 cursor = conn.cursor()
