@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+python-dotenv
+mysql-connector-python
+python-multipart
+jinja2
+pandas
+numpy
+matplotlib
+requests
+reportlab
+python-dotenv
