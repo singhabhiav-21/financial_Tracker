@@ -1,5 +1,8 @@
 fastapi
 uvicorn
+starlette
+pydantic
+itsdangerous
 python-dotenv
 mysql-connector-python
 python-multipart
@@ -9,4 +12,3 @@ numpy
 matplotlib
 requests
 reportlab
-python-dotenv
