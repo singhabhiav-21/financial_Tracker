@@ -2,7 +2,7 @@ from databaseDAO.sqlConnector import get_connection
 from contextlib import contextmanager
 
 
-
+@contextmanager
 def db(dictionary=False):
     conn = None
     cursor = None
