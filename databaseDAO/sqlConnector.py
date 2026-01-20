@@ -8,7 +8,7 @@ load_dotenv()
 
 pool = MySQLConnectionPool(
     pool_name="mypool",
-    pool_size=5,
+    pool_size=3,
     pool_reset_session=True,
     host=os.getenv('DB_HOST', 'localhost'),
     port=int(os.getenv('DB_PORT', '3306')),
