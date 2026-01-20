@@ -14,16 +14,17 @@ from pathlib import Path
 import traceback
 import re
 from dotenv import load_dotenv
+from fastapi.concurrency import run_in_threadpool
 
 # DAO imports
 from databaseDAO.userDAO import logIn, register, update_userinfo, update_password
 from databaseDAO.Account.account_dao import (
     addAccount, delete_account, update_account,
-    add_money, transfer_money
+    add_money, transfer_money, get_all_accounts, get_account
 )
 from databaseDAO.transaction.transaction_DAO import (
     register_transaction, delete_transaction, update_transaction,
-    get_transaction
+    get_transaction, get_all_transactions
 )
 from databaseDAO.transaction.importcsv import bankImporter
 
@@ -286,7 +287,6 @@ async def login_endpoint(request: Request, response: Response, data: LoginReques
 
     request.session.update(request.session)  # Triggers save
 
-
     print(f"✅ Session created for user {user_id}: {request.session}")
     # ← ADD THIS: Check if session cookie is in response
     print(f"✅ Response cookies: {response.headers}")
@@ -365,79 +365,31 @@ async def logout_endpoint(request: Request, response: Response):
 # ==================== ACCOUNT ENDPOINTS ====================
 @app.post("/accounts")
 async def create_account(data: AccountCreate, current_user_id: int = Depends(get_current_user)):
-    if not addAccount(
-            userid=current_user_id,
-            name=data.name,
-            type=data.type,
-            balance=data.balance,
-            currency=data.currency,
-            platform_name=data.platform_name):
+    ok = await run_in_threadpool(
+        addAccount,
+        current_user_id,
+        data.name,
+        data.type,
+        data.balance,
+        data.currency,
+        data.platform_name
+    )
+    if not ok:
         raise HTTPException(status_code=400, detail="Account creation failed")
     return {"success": True}
 
 
 @app.get("/accounts")
 async def get_accounts(current_user_id: int = Depends(get_current_user)):
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute(
-        "SELECT * FROM account WHERE user_id=%s",
-        (current_user_id,)
-    )
-    rows = cursor.fetchall()
-    if not rows:
-        return []
-    cols = [d[0] for d in cursor.description]
-    cursor.close()
-    conn.close()
-    return [dict(zip(cols, r)) for r in rows]
+    return await run_in_threadpool(get_all_accounts, current_user_id)
 
 
 @app.get("/accounts/{account_id}")
 async def get_account_by_id(account_id: int, current_user_id: int = Depends(get_current_user)):
-    """
-    Get a single account by ID for editing
-    Example: GET /accounts/5?user_id=1
-
-    This endpoint is needed for the Update Account feature.
-    It fetches one specific account so the edit modal can be pre-filled.
-    """
-    try:
-        conn = get_connection()
-        cursor = conn.cursor(dictionary=True)
-
-        # Query for specific account with user verification for security
-        cursor.execute("""
-                       SELECT account_id,
-                              account_name,
-                              account_type,
-                              account_balance,
-                              currency,
-                              platform_name,
-                              created_at
-                       FROM account
-                       WHERE account_id = %s
-                         AND user_id = %s
-                       """, (account_id, current_user_id))
-
-        account = cursor.fetchone()
-        cursor.close()
-        conn.close()
-
-        if not account:
-            raise HTTPException(
-                status_code=404,
-                detail="Account not found or access denied"
-            )
-
-        return account
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"Error fetching account: {e}")
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+    account = await run_in_threadpool(get_account, account_id, current_user_id)
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found or access denied")
+    return account
 
 
 @app.put("/accounts/{account_id}")
@@ -446,7 +398,8 @@ async def update_account_endpoint(
     data: AccountUpdate,
     current_user_id: int = Depends(get_current_user)
 ):
-    if not update_account(
+    ok = await run_in_threadpool(
+        update_account,
         account_id,
         current_user_id,
         data.name,
@@ -454,26 +407,30 @@ async def update_account_endpoint(
         data.balance,
         data.currency,
         data.platform_name
-    ):
+    )
+    if not ok:
         raise HTTPException(status_code=400, detail="Update failed")
     return {"success": True}
 
 
 @app.delete("/accounts/{account_id}")
 async def delete_account_endpoint(
-        account_id: int,
-        data: AccountDelete,
-        current_user_id: int = Depends(get_current_user)
-    ):
-    if not delete_account(current_user_id, account_id, data.password):
-        raise HTTPException(
-            status_code=400,
-            detail="Delete failed. Check your password or account access."
-        )
+    account_id: int,
+    data: AccountDelete,
+    current_user_id: int = Depends(get_current_user)
+):
+    ok = await run_in_threadpool(
+        delete_account,
+        current_user_id,
+        account_id,
+        data.password
+    )
+    if not ok:
+        raise HTTPException(status_code=400, detail="Delete failed")
     return {"success": True, "message": "Account deleted successfully"}
 
-
-@app.post("/accounts/{account_id}/add-money")
+#Not been implemented yet!
+"""@app.post("/accounts/{account_id}/add-money")
 async def add_money_endpoint(
     account_id: int,
     data: AddMoney,
@@ -496,67 +453,64 @@ async def transfer_money_endpoint(
         int(data.amount)
     ):
         raise HTTPException(status_code=400, detail="Transfer failed")
-    return {"success": True}
+    return {"success": True}"""
 
 
 # ==================== TRANSACTION ENDPOINTS ====================
 @app.post("/transactions")
-async def create_transaction(data: TransactionCreate,
-                             current_user_id: int = Depends(get_current_user)):
-
-    if not register_transaction(
-            user_id=current_user_id,
-            category_id=data.category_id,
-            name=data.name,
-            amount=data.amount,
-            description=data.description,
-            transaction_date=data.transaction_date,
-            balance=data.balance
-    ):
+async def create_transaction(data: TransactionCreate, current_user_id: int = Depends(get_current_user)):
+    ok = await run_in_threadpool(
+        register_transaction,
+        current_user_id,
+        data.category_id,
+        data.name,
+        data.amount,
+        data.description,
+        data.transaction_date,
+        data.balance
+    )
+    if not ok:
         raise HTTPException(status_code=400, detail="Transaction failed")
     return {"success": True}
 
 
 @app.get("/transactions")
 async def get_transactions(current_user_id: int = Depends(get_current_user)):
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute(
-        "SELECT * FROM transactions WHERE user_id=%s ORDER BY transaction_date DESC",
-        (current_user_id,)
-    )
-    rows = cursor.fetchall()
-    if not rows:
-        return []
-    cols = [d[0] for d in cursor.description]
-    return [dict(zip(cols, r)) for r in rows]
+    return await run_in_threadpool(get_all_transactions, current_user_id)
 
 
 @app.get("/transactions/{transaction_id}")
 async def get_transaction_endpoint(transaction_id: int, current_user_id: int = Depends(get_current_user)):
-    tx = get_transaction(transaction_id, current_user_id)
+    tx = await run_in_threadpool(get_transaction, transaction_id, current_user_id)
     if not tx:
         raise HTTPException(status_code=404, detail="Transaction not found")
     return tx
 
 
 @app.put("/transactions/{transaction_id}")
-async def update_transaction_endpoint(transaction_id: int, data: TransactionUpdate,  current_user_id: int = Depends(get_current_user)):
-    if not update_transaction(
-            transaction_id,
-            current_user_id,
-            data.category_id,
-            data.name,
-            data.amount,
-            data.description
-    ):
+async def update_transaction_endpoint(
+    transaction_id: int,
+    data: TransactionUpdate,
+    current_user_id: int = Depends(get_current_user)
+):
+    ok = await run_in_threadpool(
+        update_transaction,
+        transaction_id,
+        current_user_id,
+        data.category_id,
+        data.name,
+        data.amount,
+        data.description
+    )
+    if not ok:
         raise HTTPException(status_code=400, detail="Update failed")
     return {"success": True}
 
 
 @app.delete("/transactions/{transaction_id}")
 async def delete_transaction_endpoint(transaction_id: int, current_user_id: int = Depends(get_current_user)):
-    if not delete_transaction(transaction_id, current_user_id):
+    ok = await run_in_threadpool(delete_transaction, transaction_id, current_user_id)
+    if not ok:
         raise HTTPException(status_code=400, detail="Delete failed")
     return {"success": True}
 

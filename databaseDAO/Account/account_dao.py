@@ -1,12 +1,39 @@
+from contextlib import contextmanager
+
 from databaseDAO.sqlConnector import get_connection
 from databaseDAO.userDAO import hashAgain
 
 
-def addAccount(userid, name, type, balance, currency, platform_name):
-    """Add a new account for a user"""
-    conn = get_connection()
-    cursor = conn.cursor()
+@contextmanager
+def db(dictionary=False):
+    conn = None
+    cursor = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor(dictionary=dictionary)
+        yield conn, cursor
+        conn.commit()
+    except Exception:
+        if conn is not None:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+        raise
+    finally:
+        if cursor is not None:
+            try:
+                cursor.close()
+            except Exception:
+                pass
+        if conn is not None:
+            try:
+                conn.close()  # returns to pool
+            except Exception:
+                pass
 
+
+def addAccount(userid, name, type, balance, currency, platform_name):
     balance, balance_msg = check_balance(balance)
     if balance is False:
         print(f"Balance validation failed: {balance_msg}")
@@ -16,22 +43,15 @@ def addAccount(userid, name, type, balance, currency, platform_name):
     if type is False:
         print(f"Account type validation failed: {type_msg}")
         return False
-
-    try:
+    with db() as (conn, cursor):
         query = ("INSERT INTO account (user_id, account_name, account_type, account_balance, currency, platform_name) "
                  "VALUES (%s,%s,%s,%s,%s,%s)")
         cursor.execute(query, (userid, name, type, balance, currency, platform_name))
-        conn.commit()
         print(f"Account '{name}' added successfully for user {userid}")
         return True
-    except Exception as e:
-        conn.rollback()
-        print(f"Error adding account: {e}")
-        return False
 
 
 def check_balance(balance):
-    """Validate account balance"""
     # Accept both int and float
     if not isinstance(balance, (int, float)):
         return False, "The balance must be a number"
@@ -42,7 +62,6 @@ def check_balance(balance):
 
 
 def checkaccountType(actype: str):
-    """Validate account type"""
     accountType = ["savings",
                    "current",
                    "fixed deposit",
@@ -72,10 +91,8 @@ def delete_account(current_user_id: int, account_id: int, password: str) -> bool
     Returns:
         bool: True if deleted successfully, False otherwise
     """
-    conn = get_connection()
-    cursor = conn.cursor()
 
-    try:
+    with db(dictionary=True) as (conn, cursor):
         query = """
                 SELECT user_id
                 FROM account
@@ -114,7 +131,6 @@ def delete_account(current_user_id: int, account_id: int, password: str) -> bool
         # Step 3: Delete the account (now safe because we verified ownership)
         query = "DELETE FROM account WHERE account_id = %s AND user_id = %s"
         cursor.execute(query, (account_id, current_user_id))
-        conn.commit()
 
         if cursor.rowcount == 0:
             print(f"Delete failed, account not found or access denied")
@@ -123,77 +139,60 @@ def delete_account(current_user_id: int, account_id: int, password: str) -> bool
         print(f"Account {account_id} deleted successfully by user {current_user_id}")
         return True
 
-    except Exception as e:
-        conn.rollback()
-        print(f"Error deleting account: {e}")
-        import traceback
-        traceback.print_exc()
-        return False
-
 
 def update_account(account_id, userid, name=None, accountType=None, balance=None, currency=None, platform_name=None):
-    """Update an existing account"""
-    conn = get_connection()
-    cursor = conn.cursor()
+    with db() as (conn, cursor):
 
-    try:
-        query = "SELECT * FROM account WHERE account_id = %s AND user_id = %s"
-        cursor.execute(query, (account_id, userid))
-        row = cursor.fetchone()
-
-        if not row:
-            print(f"No account found with ID {account_id} for user {userid}")
+        cursor.execute(
+            "SELECT 1 FROM account WHERE account_id = %s AND user_id = %s",
+            (account_id, userid)
+        )
+        if not cursor.fetchone():
             return False
 
         update = []
-        value = []
+        values = []
 
         if name is not None:
             update.append("account_name = %s")
-            value.append(name)
+            values.append(name)
 
         if accountType is not None:
-            validated_type, type_msg = checkaccountType(accountType)
-            if validated_type is False:
-                print(f"Account type validation failed: {type_msg}")
+            is_valid, normalized_type = checkaccountType(accountType)
+            if not is_valid:
                 return False
             update.append("account_type = %s")
-            value.append(validated_type)
+            values.append(normalized_type)
 
         if balance is not None:
-            validated_balance, balance_msg = check_balance(balance)
-            if validated_balance is False:
-                print(f"Balance validation failed: {balance_msg}")
+            is_valid, normalized_balance = check_balance(balance)
+            if not is_valid:
                 return False
             update.append("account_balance = %s")
-            value.append(validated_balance)
+            values.append(normalized_balance)
 
         if currency is not None:
             update.append("currency = %s")
-            value.append(currency)
+            values.append(currency)
 
         if platform_name is not None:
             update.append("platform_name = %s")
-            value.append(platform_name)
+            values.append(platform_name)
 
         if not update:
-            print("No changes provided to update")
             return False
 
-        # Add account_id to the end of values for WHERE clause
-        value.append(account_id)
+        values.extend([account_id, userid])
 
-        query = f"UPDATE account SET {', '.join(update)} WHERE account_id = %s"
+        query = f"""
+        UPDATE account
+        SET {', '.join(update)}
+        WHERE account_id = %s AND user_id = %s
+        """
 
-        cursor.execute(query, tuple(value))
-        conn.commit()
-        print(f"Account {account_id} updated successfully")
-        return True
+        cursor.execute(query, tuple(values))
 
-    except Exception as e:
-        conn.rollback()
-        print(f"Error updating account: {e}")
-        return False
+        return cursor.rowcount > 0
 
 
 def add_money(user_id, account_id, credits: int):
@@ -201,7 +200,6 @@ def add_money(user_id, account_id, credits: int):
 
     conn = get_connection()
     cursor = conn.cursor()
-
 
     if not isinstance(credits, (int, float)):
         print("Amount must be a number")
@@ -254,3 +252,46 @@ def transfer_money(user_id, account_id1, account_id2, credits: int):
         conn.rollback()
         print(f"Error transferring money: {e}")
         return False
+
+
+def get_all_accounts(current_user_id: int):
+    with db() as (_, cursor):
+        cursor.execute(
+            "SELECT * FROM account WHERE user_id=%s",
+            (current_user_id,)
+        )
+        rows = cursor.fetchall()
+        if not rows:
+            return []
+        cols = [d[0] for d in cursor.description]
+        return [dict(zip(cols, r)) for r in rows]
+
+
+def get_account(account_id: int, current_user_id: int):
+    """
+    Get a single account by ID for editing
+    Example: GET /accounts/5?user_id=1
+
+    This endpoint is needed for the Update Account feature.
+    It fetches one specific account so the edit modal can be pre-filled.
+    """
+
+    with db(dictionary=True) as (conn, cursor):
+        cursor.execute("""
+                           SELECT account_id,
+                                  account_name,
+                                  account_type,
+                                  account_balance,
+                                  currency,
+                                  platform_name,
+                                  created_at
+                           FROM account
+                           WHERE account_id = %s
+                             AND user_id = %s
+                           """, (account_id, current_user_id))
+
+        account = cursor.fetchone()
+
+        if not account:
+            return None
+        return account

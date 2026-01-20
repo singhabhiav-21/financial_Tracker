@@ -1,38 +1,51 @@
 from databaseDAO.sqlConnector import get_connection
+from contextlib import contextmanager
 
 
+
+def db(dictionary=False):
+    conn = None
+    cursor = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor(dictionary=dictionary)
+        yield conn, cursor
+        conn.commit()
+    except Exception:
+        if conn is not None:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+        raise
+    finally:
+        if cursor is not None:
+            try:
+                cursor.close()
+            except Exception:
+                pass
+        if conn is not None:
+            try:
+                conn.close()  # returns to pool
+            except Exception:
+                pass
 def register_transaction(user_id, category_id, name, amount, description, transaction_date=None, balance=None, transaction_hash = None):
-    conn = get_connection()
-    cursor = conn.cursor()
-
     query = "INSERT INTO transactions (user_id, category_id, name, amount, description, transaction_date,balance,transaction_hash) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)"
-    cursor.execute(query, (user_id, category_id, name, amount, description, transaction_date,balance, transaction_hash))
-    conn.commit()
+    with db() as (conn, cursor):
+        cursor.execute(query, (user_id, category_id, name, amount, description, transaction_date,balance, transaction_hash))
     print("transaction registered!")
     return True
 
 
 def delete_transaction(transaction_id, user_id):
-    conn = get_connection()
-    cursor = conn.cursor()
 
     query = "DELETE FROM transactions WHERE transaction_id = %s AND user_id = %s"
-    cursor.execute(query, (transaction_id, user_id,))
-    conn.commit()
-    print("The transaction has been deleted!!")
+    with db() as (conn, cursor):
+        cursor.execute(query, (transaction_id, user_id,))
     return True
 
 
 def update_transaction(transaction_id, user_id, category_id=None, name=None, amount=None, description=None):
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    query = "SELECT * FROM transactions WHERE transaction_id = %s AND user_id = %s"
-    cursor.execute(query, (transaction_id, user_id,))
-    row = cursor.fetchone()
-    if not row:
-        print("No transaction found for this user.")
-        return False
 
     updates = []
     values = []
@@ -60,38 +73,28 @@ def update_transaction(transaction_id, user_id, category_id=None, name=None, amo
     query = f"UPDATE transactions SET {', '.join(updates)} WHERE transaction_id = %s AND user_id = %s"
     values.extend([transaction_id, user_id])
 
-    try:
+    with db() as (conn, cursor):
         cursor.execute(query, tuple(values))
-        conn.commit()
-        print("Transaction updated successfully.")
-        return True
-    except Exception as e:
-        conn.rollback()
-        print("Error updating transaction:", e)
-        return False
+    return True
 
 
-def get_transactions(user_id):
-    conn = get_connection()
-    cursor = conn.cursor()
-
+def get_all_transactions(user_id):
     query = "SELECT * FROM transactions WHERE user_id = %s"
-    cursor.execute(query, (user_id,))
-    rows = cursor.fetchall()
-    if not rows:
-        print("No transaction found for this user.")
-        return False
-    return rows
+    with db() as (conn, cursor):
+        cursor.execute(query, (user_id,))
+        rows = cursor.fetchall()
+        if not rows:
+            return []
+        cols = [d[0] for d in cursor.description]
+        return [dict(zip(cols, r)) for r in rows]
 
 
 def get_transaction(transaction_id, user_id):
-    conn = get_connection()
-    cursor = conn.cursor()
-
     query = "SELECT name, amount, description, created_at FROM transactions WHERE transaction_id = %s AND user_id = %s"
-    cursor.execute(query, (transaction_id, user_id))
-    row = cursor.fetchone()
-    if not row:
-        print("No transaction found for this user.")
-        return False
+
+    with db() as (conn, cursor):
+        cursor.execute(query, (transaction_id, user_id))
+        row = cursor.fetchone()
+        if not row:
+            return False
     return row

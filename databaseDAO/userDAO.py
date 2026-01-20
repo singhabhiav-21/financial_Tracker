@@ -1,24 +1,50 @@
+from contextlib import contextmanager
+
 from databaseDAO.sqlConnector import get_connection
 import hashlib
 import os
 from datetime import datetime, timedelta
-
+from contextlib import contextmanager
 
 # Rate limiting dictionary (in production, use Redis)
 login_attempts = {}
 
 
-def register(name, email, password):
+@contextmanager
+def db(dictionary=False):
     conn = None
     cursor = None
     try:
         conn = get_connection()
-        cursor = conn.cursor()
+        cursor = conn.cursor(dictionary=dictionary)
+        yield conn, cursor
+        conn.commit()
+    except Exception:
+        if conn is not None:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+        raise
+    finally:
+        if cursor is not None:
+            try:
+                cursor.close()
+            except Exception:
+                pass
+        if conn is not None:
+            try:
+                conn.close()  # returns to pool
+            except Exception:
+                pass
 
+
+def register(name, email, password):
+    with db() as (_, cursor):
         query = "INSERT INTO users(name, email, password) VALUES (%s,%s,%s)"
 
         namecheck = nameChecker(name)
-        emailcheck = isEmail(email)
+        emailcheck = isEmail(cursor, email)
         passwordcheck = checkpassword(password)
 
         # NOW CHECK THE FIRST ELEMENT OF THE TUPLE
@@ -31,38 +57,18 @@ def register(name, email, password):
         else:
             hashedpw = hashpassword(password)
             cursor.execute(query, (name, email, hashedpw,))
-            conn.commit()
+
             return True, "User registered successfully."
-    except Exception as e:
-        if conn:
-            conn.rollback()
-        raise e
-    finally:
-        if cursor:
-            cursor.close()
-        if conn:
-            conn.close()
 
 
-def isEmail(email):
-    conn = None
-    cursor = None
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
-
-        query = "SELECT * FROM users WHERE email = %s"
-        cursor.execute(query, (email,))
-        if cursor.fetchone() is not None:
-            print("This email is already registered. Please use a new email or continue with the current one.")
-            return False, "Email already registered"
-        else:
-            return True, "Email available"
-    finally:
-        if cursor:
-            cursor.close()
-        if conn:
-            conn.close()
+def isEmail(cursor, email):
+    query = "SELECT * FROM users WHERE email = %s"
+    cursor.execute(query, (email,))
+    if cursor.fetchone() is not None:
+        print("This email is already registered. Please use a new email or continue with the current one.")
+        return False, "Email already registered"
+    else:
+        return True, "Email available"
 
 
 def hashpassword(password):
@@ -122,12 +128,10 @@ def check_rate_limit(email):
     if email in login_attempts:
         attempts, last_attempt = login_attempts[email]
 
-        # Reset after 15 minutes
         if current_time - last_attempt > timedelta(minutes=15):
             login_attempts[email] = (1, current_time)
             return True
 
-        # Block after 5 attempts
         if attempts >= 5:
             print(f"Too many login attempts for {email}. Try again in 15 minutes.")
             return False
@@ -148,13 +152,9 @@ def logIn(email, password):
     if not check_rate_limit(email):
         return False, None
 
-    conn = None
-    cursor = None
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
+    with db() as (conn, cursor):
 
-        salt = passwordSalt(email)
+        salt = passwordSalt(cursor, email)
         if not salt:
             print("The email or password is incorrect!")
             return False, None
@@ -179,35 +179,16 @@ def logIn(email, password):
         else:
             print("The email or password is incorrect")
             return False, None
-    except Exception as e:
-        print("Database error: ", str(e))
-        return False, None
-    finally:
-        if cursor:
-            cursor.close()
-        if conn:
-            conn.close()
 
 
-def passwordSalt(email):
-    conn = None
-    cursor = None
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
-
-        query = "SELECT password FROM users WHERE email = %s"
-        cursor.execute(query, (email,))
-        result = cursor.fetchone()
-        if not result:
-            return None
-        salt, _ = result[0].split(":")
-        return salt
-    finally:
-        if cursor:
-            cursor.close()
-        if conn:
-            conn.close()
+def passwordSalt(cursor, email):
+    query = "SELECT password FROM users WHERE email = %s"
+    cursor.execute(query, (email,))
+    result = cursor.fetchone()
+    if not result:
+        return None
+    salt, _ = result[0].split(":")
+    return salt
 
 
 def hashAgain(salt, password):
@@ -216,12 +197,8 @@ def hashAgain(salt, password):
 
 
 def update_userinfo(email=None, name=None, new_email=None):
-    conn = None
-    cursor = None
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
 
+   with db() as (conn, cursor):
         query = "SELECT user_id FROM users WHERE email = %s"
         cursor.execute(query, (email,))
         row = cursor.fetchone()
@@ -241,7 +218,7 @@ def update_userinfo(email=None, name=None, new_email=None):
             value.append(name)
 
         if new_email:
-            emailcheck = isEmail(new_email)
+            emailcheck = isEmail(cursor, new_email)
             if not emailcheck[0]:
                 print("invalid email")
                 return False
@@ -251,27 +228,13 @@ def update_userinfo(email=None, name=None, new_email=None):
         value.append(email)
         query = f"UPDATE users SET {', '.join(update)} WHERE email = %s"
         cursor.execute(query, tuple(value))
-        conn.commit()
         print("User information updated successfully.")
         return True
-    except Exception as e:
-        if conn:
-            conn.rollback()
-        raise e
-    finally:
-        if cursor:
-            cursor.close()
-        if conn:
-            conn.close()
 
 
 def update_password(email, old_password, password, re_password):
-    conn = None
-    cursor = None
-    try:
-        conn = get_connection()
-        cursor = conn.cursor()
 
+    with db() as (conn, cursor):
         query = "SELECT password FROM users WHERE email = %s"
         cursor.execute(query, (email,))
         row = cursor.fetchone()
@@ -297,15 +260,5 @@ def update_password(email, old_password, password, re_password):
                 query = "UPDATE users SET password = %s WHERE email = %s"
                 newPassword_hash = hashpassword(password)
                 cursor.execute(query, (newPassword_hash, email,))
-                conn.commit()
                 print("The password has been successfully changed!")
                 return True
-    except Exception as e:
-        if conn:
-            conn.rollback()
-        raise e
-    finally:
-        if cursor:
-            cursor.close()
-        if conn:
-            conn.close()
