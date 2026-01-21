@@ -13,6 +13,7 @@ from databaseDAO.sqlConnector import get_connection, db
 from contextlib import contextmanager
 from reportlab.graphics.shapes import Line, String
 
+
 def get_data(user_id, month):
     if not user_exists(user_id):
         print(f"User with ID {user_id} does not exist!")

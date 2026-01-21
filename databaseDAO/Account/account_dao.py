@@ -137,8 +137,8 @@ def update_account(account_id, userid, name=None, accountType=None, balance=None
             values.append(normalized_type)
 
         if balance is not None:
-            is_valid, normalized_balance = check_balance(balance)
-            if not is_valid:
+            normalized_balance, balance_msg = check_balance(balance)
+            if normalized_balance is False:
                 return False
             update.append("account_balance = %s")
             values.append(normalized_balance)
