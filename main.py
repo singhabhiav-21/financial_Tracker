@@ -79,8 +79,6 @@ async def debug_session_middleware(request: Request, call_next):
     print(f"{'=' * 60}\n")
 
     return response
-
-
 # ==================== STATIC FILES ====================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -153,7 +151,6 @@ async def dashboard_page(request: Request):
     return FileResponse(
         os.path.join(BASE_DIR, "frontend", "templates", "dashboard.html")
     )
-
 
 @app.get("/accounts.html")
 async def accounts_page():
@@ -276,8 +273,6 @@ async def auth_status(request: Request):
         "authenticated": True,
         "user_id": user_id
     }
-
-
 @app.post("/login")
 async def login_endpoint(request: Request, response: Response, data: LoginRequest):
     success, user_id = logIn(data.email, data.password, )
@@ -305,8 +300,8 @@ async def login_endpoint(request: Request, response: Response, data: LoginReques
 
 
 @app.get("/me")
-async def get_me(request: Request, current_user: int = Depends(get_current_user)):
-    return {
+async def get_me(request: Request, current_user:int =Depends(get_current_user)):
+    return  {
         "user_id": current_user,
         "email": request.session.get("email")
     }
@@ -400,9 +395,9 @@ async def get_account_by_id(account_id: int, current_user_id: int = Depends(get_
 
 @app.put("/accounts/{account_id}")
 async def update_account_endpoint(
-        account_id: int,
-        data: AccountUpdate,
-        current_user_id: int = Depends(get_current_user)
+    account_id: int,
+    data: AccountUpdate,
+    current_user_id: int = Depends(get_current_user)
 ):
     ok = await run_in_threadpool(
         update_account,
@@ -421,9 +416,9 @@ async def update_account_endpoint(
 
 @app.delete("/accounts/{account_id}")
 async def delete_account_endpoint(
-        account_id: int,
-        data: AccountDelete,
-        current_user_id: int = Depends(get_current_user)
+    account_id: int,
+    data: AccountDelete,
+    current_user_id: int = Depends(get_current_user)
 ):
     ok = await run_in_threadpool(
         delete_account,
@@ -434,7 +429,6 @@ async def delete_account_endpoint(
     if not ok:
         raise HTTPException(status_code=400, detail="Delete failed")
     return {"success": True, "message": "Account deleted successfully"}
-
 
 #Not been implemented yet!
 """@app.post("/accounts/{account_id}/add-money")
@@ -496,9 +490,9 @@ async def get_transaction_endpoint(transaction_id: int, current_user_id: int = D
 
 @app.put("/transactions/{transaction_id}")
 async def update_transaction_endpoint(
-        transaction_id: int,
-        data: TransactionUpdate,
-        current_user_id: int = Depends(get_current_user)
+    transaction_id: int,
+    data: TransactionUpdate,
+    current_user_id: int = Depends(get_current_user)
 ):
     ok = await run_in_threadpool(
         update_transaction,
@@ -523,15 +517,13 @@ async def delete_transaction_endpoint(transaction_id: int, current_user_id: int 
 
 
 @app.get("/api/weekly-chart")
-async def get_weekly_chart_data(current_user_id: int = Depends(get_current_user), weeks: int = 8,
-                                base_currency: str = "USD"):
+async def get_weekly_chart_data(current_user_id: int = Depends(get_current_user), weeks: int = 8, base_currency: str = "USD"):
     """
     Get weekly income/expense data using BarChart.py logic
     Processes data exactly like your Python visualization
     Example: GET /api/weekly-chart/43?weeks=8&base_currency=USD
     """
     try:
-        # USE YOUR weekly_expenses() function from BarChart.py
         transactions = weekly_expenses(current_user_id, weeks)
 
         if not transactions:
@@ -542,28 +534,20 @@ async def get_weekly_chart_data(current_user_id: int = Depends(get_current_user)
                 'weeks': weeks
             }
 
-        # USE YOUR PANDAS LOGIC from BarChart.py
-        # Create DataFrame from transactions (same as your code)
         df = pd.DataFrame(transactions, columns=["Date", "Amount"])
         df["Date"] = pd.to_datetime(df["Date"])
         df.set_index("Date", inplace=True)
 
-        # USE YOUR incoming_funds() and outgoing_funds() functions
-        # Resample by week (starting Monday) and aggregate
         weekly = df.resample('W-MON').agg({
             'Amount': [incoming_funds, outgoing_funds]
         })
 
-        # Reset index first to get the Date column
         weekly = weekly.reset_index()
 
-        # Then rename the aggregated columns
         weekly.columns = ['Date', 'Income', 'Expenses']
 
-        # Calculate net
         weekly['Net'] = weekly['Income'] - weekly['Expenses']
 
-        # Get currency converter for conversion
         converter = get_currency_converter()
         needs_conversion = base_currency != 'SEK'
 
@@ -589,12 +573,10 @@ async def get_weekly_chart_data(current_user_id: int = Depends(get_current_user)
                 'net': round(net, 2)
             })
 
-        # Calculate totals
         total_income = sum(w['income'] for w in weekly_data)
         total_expenses = sum(w['expenses'] for w in weekly_data)
         total_net = total_income - total_expenses
 
-        # Get date range for display
         if weekly_data:
             start_date = weekly_data[0]['date']
             end_date = weekly_data[-1]['date']
@@ -637,53 +619,23 @@ async def get_dashboard_converted(current_user_id: int = Depends(get_current_use
     Get dashboard with all accounts converted to base currency
     Example: GET /api/currency/dashboard?base_currency=USD
     """
-    try:
-        conn = get_connection()
-        cursor = conn.cursor(dictionary=True)
+    accounts = get_all_accounts(current_user_id)
 
-        # Get accounts
-        cursor.execute("""
-                       SELECT account_id,
-                              account_name,
-                              account_type,
-                              account_balance,
-                              currency,
-                              platform_name,
-                              created_at
-                       FROM account
-                       WHERE user_id = %s
-                       """, (current_user_id,))
-        accounts = cursor.fetchall()
+    transactions = get_all_transactions(current_user_id)
 
-        # Get transactions
-        cursor.execute("""
-                       SELECT transaction_id, name, amount, description, transaction_date
-                       FROM transactions
-                       WHERE user_id = %s
-                       ORDER BY transaction_date DESC LIMIT 100
-                       """, (current_user_id,))
-        transactions = cursor.fetchall()
+    converter = get_currency_converter()
 
-        cursor.close()
-        conn.close()
+    conversion_result = converter.convert_accounts(accounts, base_currency)
 
-        # Get currency converter (singleton)
-        converter = get_currency_converter()
+    if not conversion_result['success']:
+        raise HTTPException(status_code=500, detail=conversion_result.get('error'))
 
-        # Convert accounts
-        conversion_result = converter.convert_accounts(accounts, base_currency)
+    total_income = sum(float(t['amount']) for t in transactions if float(t['amount']) > 0)
+    total_expenses = sum(abs(float(t['amount'])) for t in transactions if float(t['amount']) < 0)
 
-        if not conversion_result['success']:
-            raise HTTPException(status_code=500, detail=conversion_result.get('error'))
+    recent_transactions = transactions[:5]
 
-        # Calculate income/expenses (simple sum, no conversion for now)
-        total_income = sum(float(t['amount']) for t in transactions if float(t['amount']) > 0)
-        total_expenses = sum(abs(float(t['amount'])) for t in transactions if float(t['amount']) < 0)
-
-        # Recent 5 transactions
-        recent_transactions = transactions[:5]
-
-        return {
+    return {
             'success': True,
             'user_id': current_user_id,
             'base_currency': base_currency,
@@ -698,10 +650,6 @@ async def get_dashboard_converted(current_user_id: int = Depends(get_current_use
             'timestamp': conversion_result['timestamp']
         }
 
-    except Exception as e:
-        print(f"❌ Dashboard error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
 
 @app.get("/api/currency/accounts/converted")
 async def get_accounts_converted(current_user_id: int = Depends(get_current_user), base_currency: str = "USD"):
@@ -709,38 +657,14 @@ async def get_accounts_converted(current_user_id: int = Depends(get_current_user
     Get accounts with currency conversion
     Example: GET /api/currency/accounts/1/converted?base_currency=EUR
     """
-    try:
-        conn = get_connection()
-        cursor = conn.cursor(dictionary=True)
+    accounts = get_all_accounts(current_user_id)
 
-        cursor.execute("""
-                       SELECT account_id,
-                              account_name,
-                              account_type,
-                              account_balance,
-                              currency,
-                              platform_name,
-                              created_at
-                       FROM account
-                       WHERE user_id = %s
-                       """, (current_user_id,))
-        accounts = cursor.fetchall()
+    converter = get_currency_converter()
+    result = converter.convert_accounts(accounts, base_currency)
+    if not result['success']:
+        raise HTTPException(status_code=500, detail=result.get('error'))
 
-        cursor.close()
-        conn.close()
-
-        # Convert accounts
-        converter = get_currency_converter()
-        result = converter.convert_accounts(accounts, base_currency)
-
-        if not result['success']:
-            raise HTTPException(status_code=500, detail=result.get('error'))
-
-        return result
-
-    except Exception as e:
-        print(f"Accounts error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    return result
 
 
 @app.get("/api/currency/rates")
@@ -854,6 +778,7 @@ async def import_csv_transactions(
     print(f"Filename: {file.filename}")
     print(f"Content Type: {file.content_type}")
     print(f"{'=' * 60}\n")
+
 
     # Security validation
     is_valid, error_msg = validate_file_security(file)
@@ -1076,13 +1001,13 @@ async def generate_report(data: ReportGenerateRequest, current_user_id: int = De
 @app.delete("/api/reports/{report_id}")
 async def delete_report(report_id: int, current_user_id: int = Depends(get_current_user)):
     try:
-        result = delete_report_service(report_id, current_user_id)
+            result = delete_report_service(report_id, current_user_id)
 
-        return {
-            "success": True,
-            "message": "Report deleted successfully",
-            **result
-        }
+            return {
+                "success": True,
+                "message": "Report deleted successfully",
+                **result
+            }
 
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))

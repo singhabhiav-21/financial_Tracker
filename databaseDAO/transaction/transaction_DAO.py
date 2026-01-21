@@ -82,13 +82,12 @@ def update_transaction(transaction_id, user_id, category_id=None, name=None, amo
 
 def get_all_transactions(user_id):
     query = "SELECT * FROM transactions WHERE user_id = %s"
-    with db() as (conn, cursor):
+    with db(dictionary=True) as (conn, cursor):
         cursor.execute(query, (user_id,))
         rows = cursor.fetchall()
         if not rows:
             return []
-        cols = [d[0] for d in cursor.description]
-        return [dict(zip(cols, r)) for r in rows]
+        return rows
 
 
 def get_transaction(transaction_id, user_id):

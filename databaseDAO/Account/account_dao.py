@@ -255,7 +255,7 @@ def transfer_money(user_id, account_id1, account_id2, credits: int):
 
 
 def get_all_accounts(current_user_id: int):
-    with db() as (_, cursor):
+    with db(dictionary=True) as (_, cursor):
         cursor.execute(
             "SELECT * FROM account WHERE user_id=%s",
             (current_user_id,)
@@ -263,8 +263,7 @@ def get_all_accounts(current_user_id: int):
         rows = cursor.fetchall()
         if not rows:
             return []
-        cols = [d[0] for d in cursor.description]
-        return [dict(zip(cols, r)) for r in rows]
+        return rows
 
 
 def get_account(account_id: int, current_user_id: int):

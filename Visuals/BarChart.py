@@ -1,17 +1,42 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from contextlib import contextmanager
 
 from databaseDAO.sqlConnector import get_connection
-
+@contextmanager
+def db(dictionary=False):
+    conn = None
+    cursor = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor(dictionary=dictionary)
+        yield conn, cursor
+        conn.commit()
+    except Exception:
+        if conn is not None:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+        raise
+    finally:
+        if cursor is not None:
+            try:
+                cursor.close()
+            except Exception:
+                pass
+        if conn is not None:
+            try:
+                conn.close()  # returns to pool
+            except Exception:
+                pass
 
 
 def weekly_expenses(user, weeks=12):
     """Fetch transactions for a user within the specified number of weeks"""
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    query = """
+    with db() as (conn, cursor):
+        query = """
             SELECT DATE (transaction_date) as date, amount
             FROM transactions
             WHERE user_id = %s
@@ -19,8 +44,8 @@ def weekly_expenses(user, weeks=12):
                 , INTERVAL %s WEEK)
             ORDER BY transaction_date ASC \
             """
-    cursor.execute(query, (user, weeks))
-    result = cursor.fetchall()
+        cursor.execute(query, (user, weeks))
+        result = cursor.fetchall()
 
     if not result:
         print("No transactions found for this user!")
