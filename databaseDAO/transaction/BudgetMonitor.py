@@ -6,9 +6,9 @@ conn = get_connection()
 cursor = conn.cursor()
 
 
-def set_budget(user_id, category_id, amount, month, year, repeat: bool):
-    query = """
-    INSERT INTO budget(user_id, category_id, amount, month, year) VALUES (%s,%s,%s,%s,%s)
+#def set_budget(user_id, category_id, amount, month, year, repeat: bool):
+    #query = """
+    #INSERT INTO budget(user_id, category_id, amount, month, year) VALUES (%s,%s,%s,%s,%s)
     """
     if amount <= 0:
         print("the amount cannot be less than or equal to 0")
@@ -34,15 +34,15 @@ def repeat_budget(user_id, category_id, amount, start_m, start_y, duration):
 
     for _ in range(duration):
         cursor.execute("""
-        INSERT INTO budget(user_id, category_id, amount, month, year)
-        VALUES (?,?,?,?,?)
+        #INSERT INTO budget(user_id, category_id, amount, month, year)
+        #VALUES (?,?,?,?,?)
         """, (user_id, category_id, amount, month, year))
 
         month += 1
         if month > 12:
             month += 1
             year += 1
-    return True
+    return True"""
 
 
 

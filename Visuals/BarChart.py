@@ -3,34 +3,7 @@ import numpy as np
 import pandas as pd
 from contextlib import contextmanager
 
-from databaseDAO.sqlConnector import get_connection
-@contextmanager
-def db(dictionary=False):
-    conn = None
-    cursor = None
-    try:
-        conn = get_connection()
-        cursor = conn.cursor(dictionary=dictionary)
-        yield conn, cursor
-        conn.commit()
-    except Exception:
-        if conn is not None:
-            try:
-                conn.rollback()
-            except Exception:
-                pass
-        raise
-    finally:
-        if cursor is not None:
-            try:
-                cursor.close()
-            except Exception:
-                pass
-        if conn is not None:
-            try:
-                conn.close()  # returns to pool
-            except Exception:
-                pass
+from databaseDAO.sqlConnector import get_connection, db
 
 
 def weekly_expenses(user, weeks=12):

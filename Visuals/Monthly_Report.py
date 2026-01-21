@@ -9,39 +9,9 @@ from reportlab.graphics.shapes import Drawing
 from reportlab.graphics.charts.linecharts import HorizontalLineChart
 from reportlab.lib.enums import TA_CENTER
 from datetime import datetime
-from databaseDAO.sqlConnector import get_connection
+from databaseDAO.sqlConnector import get_connection, db
 from contextlib import contextmanager
 from reportlab.graphics.shapes import Line, String
-
-
-@contextmanager
-def db(dictionary=False):
-    conn = None
-    cursor = None
-    try:
-        conn = get_connection()
-        cursor = conn.cursor(dictionary=dictionary)
-        yield conn, cursor
-        conn.commit()
-    except Exception:
-        if conn is not None:
-            try:
-                conn.rollback()
-            except Exception:
-                pass
-        raise
-    finally:
-        if cursor is not None:
-            try:
-                cursor.close()
-            except Exception:
-                pass
-        if conn is not None:
-            try:
-                conn.close()  # returns to pool
-            except Exception:
-                pass
-
 
 def get_data(user_id, month):
     if not user_exists(user_id):

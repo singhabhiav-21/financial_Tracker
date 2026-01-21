@@ -1,36 +1,8 @@
 from contextlib import contextmanager
 
-from databaseDAO.sqlConnector import get_connection
+from databaseDAO.sqlConnector import get_connection, db
 from databaseDAO.userDAO import hashAgain
 
-
-@contextmanager
-def db(dictionary=False):
-    conn = None
-    cursor = None
-    try:
-        conn = get_connection()
-        cursor = conn.cursor(dictionary=dictionary)
-        yield conn, cursor
-        conn.commit()
-    except Exception:
-        if conn is not None:
-            try:
-                conn.rollback()
-            except Exception:
-                pass
-        raise
-    finally:
-        if cursor is not None:
-            try:
-                cursor.close()
-            except Exception:
-                pass
-        if conn is not None:
-            try:
-                conn.close()  # returns to pool
-            except Exception:
-                pass
 
 
 def addAccount(userid, name, type, balance, currency, platform_name):
@@ -198,8 +170,6 @@ def update_account(account_id, userid, name=None, accountType=None, balance=None
 def add_money(user_id, account_id, credits: int):
     """Add money to an account"""
 
-    conn = get_connection()
-    cursor = conn.cursor()
 
     if not isinstance(credits, (int, float)):
         print("Amount must be a number")
@@ -209,23 +179,17 @@ def add_money(user_id, account_id, credits: int):
         print("Amount must be between 0 and 10,000,000")
         return False
 
-    try:
+    with db() as (conn, cursor):
         query = "UPDATE account SET account_balance = account_balance + %s WHERE account_id = %s AND user_id = %s"
         cursor.execute(query, (credits, account_id, user_id))
         conn.commit()
         print(f"Added {credits} to account {account_id}")
         return True
-    except Exception as e:
-        conn.rollback()
-        print(f"Error adding money: {e}")
-        return False
 
 
 def transfer_money(user_id, account_id1, account_id2, credits: int):
-    conn = get_connection()
-    cursor = conn.cursor()
 
-    try:
+    with db() as (conn, cursor):
         query = "SELECT account_balance FROM account WHERE account_id = %s AND user_id = %s"
         cursor.execute(query, (account_id1, user_id))
         row = cursor.fetchone()
@@ -244,14 +208,9 @@ def transfer_money(user_id, account_id1, account_id2, credits: int):
 
         query2 = "UPDATE account SET account_balance = account_balance + %s WHERE account_id = %s AND user_id = %s"
         cursor.execute(query2, (credits, account_id2, user_id))
-        conn.commit()
         print(f"Transferred {credits} from account {account_id1} to {account_id2}")
         return True
 
-    except Exception as e:
-        conn.rollback()
-        print(f"Error transferring money: {e}")
-        return False
 
 
 def get_all_accounts(current_user_id: int):

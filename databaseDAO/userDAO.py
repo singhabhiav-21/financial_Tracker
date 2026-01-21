@@ -1,43 +1,12 @@
 from contextlib import contextmanager
 
-from databaseDAO.sqlConnector import get_connection
+from databaseDAO.sqlConnector import get_connection, db
 import hashlib
 import os
 from datetime import datetime, timedelta
-from contextlib import contextmanager
 
 # Rate limiting dictionary (in production, use Redis)
 login_attempts = {}
-
-
-@contextmanager
-def db(dictionary=False):
-    conn = None
-    cursor = None
-    try:
-        conn = get_connection()
-        cursor = conn.cursor(dictionary=dictionary)
-        yield conn, cursor
-        conn.commit()
-    except Exception:
-        if conn is not None:
-            try:
-                conn.rollback()
-            except Exception:
-                pass
-        raise
-    finally:
-        if cursor is not None:
-            try:
-                cursor.close()
-            except Exception:
-                pass
-        if conn is not None:
-            try:
-                conn.close()  # returns to pool
-            except Exception:
-                pass
-
 
 def register(name, email, password):
     with db() as (_, cursor):

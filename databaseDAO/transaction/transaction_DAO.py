@@ -1,34 +1,4 @@
-from databaseDAO.sqlConnector import get_connection
-from contextlib import contextmanager
-
-
-@contextmanager
-def db(dictionary=False):
-    conn = None
-    cursor = None
-    try:
-        conn = get_connection()
-        cursor = conn.cursor(dictionary=dictionary)
-        yield conn, cursor
-        conn.commit()
-    except Exception:
-        if conn is not None:
-            try:
-                conn.rollback()
-            except Exception:
-                pass
-        raise
-    finally:
-        if cursor is not None:
-            try:
-                cursor.close()
-            except Exception:
-                pass
-        if conn is not None:
-            try:
-                conn.close()  # returns to pool
-            except Exception:
-                pass
+from databaseDAO.sqlConnector import get_connection, db
 
 
 def register_transaction(user_id, category_id, name, amount, description, transaction_date=None, balance=None, transaction_hash = None):
