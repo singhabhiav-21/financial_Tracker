@@ -1,6 +1,7 @@
 // ==================== CONFIGURATION ====================
 const API_URL = 'http://localhost:8000';
 let baseCurrency = 'SEK';
+let TRANSACTION_CURRENCY = 'SEK';
 let weeklyChart = null;
 let selectedWeeks = 8;
 
@@ -168,8 +169,8 @@ function changeCurrency(newCurrency) {
     baseCurrency = newCurrency;
     sessionStorage.setItem('base_currency', newCurrency);
     showMessage(`Currency changed to ${newCurrency}`, 'success');
-    loadDashboard();
-}
+
+    loadDashboard();}
 
 // ==================== WEEK SELECTOR ====================
 function addWeekSelector() {
@@ -538,6 +539,7 @@ function displayRecentTransactions(data) {
     if (!container) return;
 
     const transactions = data.recent_transactions || [];
+    const currency = data.base_currency;
 
     if (transactions.length === 0) {
         container.innerHTML = `
@@ -585,7 +587,7 @@ function displayRecentTransactions(data) {
                     ` : ''}
                 </div>
                 <div style="font-size: 18px; font-weight: 700; color: ${color};">
-                    ${sign}${formatCurrency(Math.abs(amount), baseCurrency)}
+                    ${sign}${formatCurrency(Math.abs(amount), TRANSACTION_CURRENCY)}
                 </div>
             </div>
         `;

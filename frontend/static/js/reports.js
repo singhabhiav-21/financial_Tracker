@@ -183,9 +183,8 @@ async function handleGenerateReport(e) {
         const data = await response.json();
         if (!response.ok) throw new Error(data.detail);
 
-        showMessage(`✓ Report generated for ${formatMonth(month)}`, 'success');
-        await downloadReport(month);
-        setTimeout(loadReports, 1000);
+        showMessage(`✓ Report generated for ${formatMonth(month)}. Click Download to view it.`, 'success');
+        await loadReports()
 
     } catch (err) {
         showMessage(err.message || 'Failed to generate report', 'error');

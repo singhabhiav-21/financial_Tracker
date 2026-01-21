@@ -941,8 +941,8 @@ async def download_report(month: str, current_user_id: int = Depends(get_current
         # Get file path from service (blocking operation)
         file_path, filename = await run_in_threadpool(
             download_report_service,
-            current_user_id,
-            month
+            month,
+            current_user_id
         )
 
         # Return file (this is API-layer responsibility)
@@ -978,10 +978,7 @@ async def get_report_details(report_id: int, current_user_id: int = Depends(get_
 @app.post("/api/reports/generate")
 async def generate_report(data: ReportGenerateRequest, current_user_id: int = Depends(get_current_user)):
     try:
-        result = generate_monthly_report_service(
-            user_id=current_user_id,
-            month=data.month
-        )
+        result = await run_in_threadpool(generate_monthly_report_service, user_id=current_user_id, month=data.month)
         return {
             "success": True,
             "message": f"Report generated successfully for {data.month}",
@@ -1001,7 +998,7 @@ async def generate_report(data: ReportGenerateRequest, current_user_id: int = De
 @app.delete("/api/reports/{report_id}")
 async def delete_report(report_id: int, current_user_id: int = Depends(get_current_user)):
     try:
-            result = delete_report_service(report_id, current_user_id)
+            result = await run_in_threadpool(delete_report_service, report_id, current_user_id)
 
             return {
                 "success": True,

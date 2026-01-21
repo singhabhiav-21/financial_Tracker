@@ -751,8 +751,12 @@ def generate_report_by_userid(current_user_id, month, total_spending, transactio
 
 
 def generate_monthly_report_service(user_id, month):
+    df = get_data(user_id, month)
     if len(month) != 7 or month[4] != "-":
         raise ValueError("Invalid month format. Use YYYY-MM")
+
+    total_spending = float(df["amount"].sum())
+    transaction_count = len(df)
 
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -766,12 +770,8 @@ def generate_monthly_report_service(user_id, month):
     if not success:
         raise LookupError("No transaction data found or report generation failed")
 
-    df = get_data(user_id, month)
-    total_spending = float(df["amount"].sum())
-    transaction_count = len(df)
-
     report_id = generate_report_by_userid(
-        user_id=user_id,
+        current_user_id=user_id,
         month=month,
         total_spending=total_spending,
         transaction_count=transaction_count
