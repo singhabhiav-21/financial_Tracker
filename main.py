@@ -34,7 +34,8 @@ from databaseDAO.sqlConnector import get_connection
 from Visuals.BarChart import weekly_expenses, incoming_funds, outgoing_funds
 import pandas as pd
 
-from Visuals.Monthly_Report import make_report, get_data
+from Visuals.Monthly_Report import make_report, get_data, get_reports_service, download_report_service, \
+    generate_monthly_report_service, delete_report_service
 
 app = FastAPI()
 load_dotenv()
@@ -78,6 +79,8 @@ async def debug_session_middleware(request: Request, call_next):
     print(f"{'=' * 60}\n")
 
     return response
+
+
 # ==================== STATIC FILES ====================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -150,6 +153,7 @@ async def dashboard_page(request: Request):
     return FileResponse(
         os.path.join(BASE_DIR, "frontend", "templates", "dashboard.html")
     )
+
 
 @app.get("/accounts.html")
 async def accounts_page():
@@ -272,6 +276,8 @@ async def auth_status(request: Request):
         "authenticated": True,
         "user_id": user_id
     }
+
+
 @app.post("/login")
 async def login_endpoint(request: Request, response: Response, data: LoginRequest):
     success, user_id = logIn(data.email, data.password, )
@@ -299,8 +305,8 @@ async def login_endpoint(request: Request, response: Response, data: LoginReques
 
 
 @app.get("/me")
-async def get_me(request: Request, current_user:int =Depends(get_current_user)):
-    return  {
+async def get_me(request: Request, current_user: int = Depends(get_current_user)):
+    return {
         "user_id": current_user,
         "email": request.session.get("email")
     }
@@ -394,9 +400,9 @@ async def get_account_by_id(account_id: int, current_user_id: int = Depends(get_
 
 @app.put("/accounts/{account_id}")
 async def update_account_endpoint(
-    account_id: int,
-    data: AccountUpdate,
-    current_user_id: int = Depends(get_current_user)
+        account_id: int,
+        data: AccountUpdate,
+        current_user_id: int = Depends(get_current_user)
 ):
     ok = await run_in_threadpool(
         update_account,
@@ -415,9 +421,9 @@ async def update_account_endpoint(
 
 @app.delete("/accounts/{account_id}")
 async def delete_account_endpoint(
-    account_id: int,
-    data: AccountDelete,
-    current_user_id: int = Depends(get_current_user)
+        account_id: int,
+        data: AccountDelete,
+        current_user_id: int = Depends(get_current_user)
 ):
     ok = await run_in_threadpool(
         delete_account,
@@ -428,6 +434,7 @@ async def delete_account_endpoint(
     if not ok:
         raise HTTPException(status_code=400, detail="Delete failed")
     return {"success": True, "message": "Account deleted successfully"}
+
 
 #Not been implemented yet!
 """@app.post("/accounts/{account_id}/add-money")
@@ -489,9 +496,9 @@ async def get_transaction_endpoint(transaction_id: int, current_user_id: int = D
 
 @app.put("/transactions/{transaction_id}")
 async def update_transaction_endpoint(
-    transaction_id: int,
-    data: TransactionUpdate,
-    current_user_id: int = Depends(get_current_user)
+        transaction_id: int,
+        data: TransactionUpdate,
+        current_user_id: int = Depends(get_current_user)
 ):
     ok = await run_in_threadpool(
         update_transaction,
@@ -516,7 +523,8 @@ async def delete_transaction_endpoint(transaction_id: int, current_user_id: int 
 
 
 @app.get("/api/weekly-chart")
-async def get_weekly_chart_data(current_user_id: int = Depends(get_current_user), weeks: int = 8, base_currency: str = "USD"):
+async def get_weekly_chart_data(current_user_id: int = Depends(get_current_user), weeks: int = 8,
+                                base_currency: str = "USD"):
     """
     Get weekly income/expense data using BarChart.py logic
     Processes data exactly like your Python visualization
@@ -847,7 +855,6 @@ async def import_csv_transactions(
     print(f"Content Type: {file.content_type}")
     print(f"{'=' * 60}\n")
 
-
     # Security validation
     is_valid, error_msg = validate_file_security(file)
     if not is_valid:
@@ -1000,311 +1007,85 @@ async def import_csv_transactions(
 
 @app.get("/api/reports")
 async def get_reports(current_user_id=Depends(get_current_user)):
-    """
-    Get all reports for a user (audit trail)
-    Example: GET /api/reports?user_id=52
-    """
-    try:
-        conn = get_connection()
-        cursor = conn.cursor(dictionary=True)
-
-        cursor.execute("""
-                       SELECT report_id,
-                              user_id,
-                              report_month,
-                              total_spending,
-                              transaction_count,
-                              generated_at
-                       FROM reports
-                       WHERE user_id = %s
-                       ORDER BY report_month DESC, generated_at DESC
-                       """, (current_user_id,))
-
-        reports = cursor.fetchall()
-        cursor.close()
-        conn.close()
-
-        return {
-            "success": True,
-            "user_id": current_user_id,
-            "reports": reports,
-            "count": len(reports)
-        }
-
-    except Exception as e:
-        print(f"❌ Error fetching reports: {e}")
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+    return await run_in_threadpool(get_reports_service, current_user_id)
 
 
 @app.get("/api/reports/download")
-async def download_report( month: str,
-    current_user_id: int = Depends(get_current_user)):
-    """
-    Download a PDF report file
-    Example: GET /api/reports/download?user_id=52&month=2025-10
-    """
+async def download_report(month: str, current_user_id: int = Depends(get_current_user)):
     try:
-        # Verify report exists in database
-        conn = get_connection()
-        cursor = conn.cursor()
+        # Get file path from service (blocking operation)
+        file_path, filename = await run_in_threadpool(
+            download_report_service,
+            current_user_id,
+            month
+        )
 
-        cursor.execute("""
-                       SELECT report_id
-                       FROM reports
-                       WHERE user_id = %s
-                         AND report_month = %s
-                       """, (current_user_id, month))
-
-        result = cursor.fetchone()
-        cursor.close()
-        conn.close()
-
-        if not result:
-            raise HTTPException(
-                status_code=404,
-                detail="Report not found in database. Please generate it first."
-            )
-
-        # Build file path
-        filename = f'financial_report_{current_user_id}_{month}.pdf'
-        reports_dir = os.path.join(BASE_DIR, "reports")
-        file_path = os.path.join(reports_dir, filename)
-
-        # Check if file exists, regenerate if missing
-        if not os.path.exists(file_path):
-            print(f"PDF missing, regenerating...")
-            success = make_report(current_user_id, month, file_path)
-
-            if not success or not os.path.exists(file_path):
-                raise HTTPException(
-                    status_code=404,
-                    detail="Report file not found. Please regenerate."
-                )
-
-        # Return file for download
+        # Return file (this is API-layer responsibility)
         return FileResponse(
             path=file_path,
             filename=filename,
             media_type='application/pdf'
         )
-
-    except HTTPException:
-        raise
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
-        print(f"❌ Error downloading report: {e}")
-        traceback.print_exc()
+        print(f"Error downloading report: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/api/reports/{report_id}")
 async def get_report_details(report_id: int, current_user_id: int = Depends(get_current_user)):
-    """
-    Get details of a specific report
-    Example: GET /api/reports/1?user_id=52
-    """
     try:
-        conn = get_connection()
-        cursor = conn.cursor(dictionary=True)
-
-        cursor.execute("""
-                       SELECT report_id,
-                              user_id,
-                              report_month,
-                              total_spending,
-                              transaction_count,
-                              generated_at
-                       FROM reports
-                       WHERE report_id = %s
-                         AND user_id = %s
-                       """, (report_id, current_user_id))
-
-        report = cursor.fetchone()
-        cursor.close()
-        conn.close()
-
-        if not report:
-            raise HTTPException(status_code=404, detail="Report not found")
-
-        return {
-            "success": True,
-            **report
-        }
-
-    except HTTPException:
-        raise
+        return await run_in_threadpool(
+            get_report_details,
+            report_id,
+            current_user_id
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
-        print(f"❌ Error fetching report details: {e}")
-        traceback.print_exc()
+        print(f"Error fetching report details: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/api/reports/generate")
 async def generate_report(data: ReportGenerateRequest, current_user_id: int = Depends(get_current_user)):
-    """
-    Generate a new PDF report using YOUR EXISTING make_report() function
-    Example: POST /api/reports/generate
-    Body: {"user_id": 52, "month": "2025-10"}
-    """
     try:
-        user_id = current_user_id
-        month = data.month
-
-        print(f"\n{'=' * 60}")
-        print(f"GENERATING REPORT")
-        print(f"User ID: {user_id}, Month: {month}")
-        print(f"{'=' * 60}\n")
-
-        # Validate month format (YYYY-MM)
-        if len(month) != 7 or month[4] != '-':
-            raise HTTPException(
-                status_code=400,
-                detail="Invalid month format. Use YYYY-MM (e.g., 2025-10)"
-            )
-
-        # Set up output path
-        reports_dir = os.path.join(BASE_DIR, "reports")
-        os.makedirs(reports_dir, exist_ok=True)
-        output_path = os.path.join(reports_dir, f'financial_report_{user_id}_{month}.pdf')
-
-        # ✅ USE YOUR EXISTING make_report() function!
-        # This already handles:
-        # - Checking if data exists (returns False if no data)
-        # - Getting transaction data via get_data()
-        # - Calculating statistics
-        # - Generating the PDF
-        print(f"Calling make_report() for user {user_id}, month {month}...")
-        success = make_report(user_id, month, output_path)
-
-        if not success:
-            raise HTTPException(
-                status_code=404,
-                detail=f"No transaction data found for {month} or report generation failed"
-            )
-
-        print(f"✓ PDF generated successfully at: {output_path}")
-
-        # Get the data to calculate stats for database
-        df = get_data(user_id, month)
-        total_spending = float(df['amount'].sum())
-        transaction_count = len(df)
-
-        # Save report metadata to database
-        conn = get_connection()
-        cursor = conn.cursor()
-
-        cursor.execute("""
-                       INSERT INTO reports (user_id, report_month, total_spending, transaction_count)
-                       VALUES (%s, %s, %s, %s) ON DUPLICATE KEY
-                       UPDATE
-                           total_spending =
-                       VALUES (total_spending), transaction_count =
-                       VALUES (transaction_count), generated_at = CURRENT_TIMESTAMP
-                       """, (user_id, month, total_spending, transaction_count))
-
-        conn.commit()
-        report_id = cursor.lastrowid if cursor.lastrowid > 0 else None
-
-        # If updated (not inserted), get the report_id
-        if not report_id:
-            cursor.execute("""
-                           SELECT report_id
-                           FROM reports
-                           WHERE user_id = %s
-                             AND report_month = %s
-                           """, (user_id, month))
-            result = cursor.fetchone()
-            report_id = result[0] if result else None
-
-        cursor.close()
-        conn.close()
-
-        print(f"✓ Report metadata saved to database (ID: {report_id})\n{'=' * 60}\n")
-
+        result = generate_monthly_report_service(
+            user_id=current_user_id,
+            month=data.month
+        )
         return {
             "success": True,
-            "message": f"Report generated successfully for {month}",
-            "report_id": report_id,
-            "filename": f'financial_report_{user_id}_{month}.pdf',
-            "total_spending": round(total_spending, 2),
-            "transaction_count": transaction_count
+            "message": f"Report generated successfully for {data.month}",
+            **result
         }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
-    except HTTPException:
-        raise
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
     except Exception as e:
-        print(f"\n❌ ERROR generating report: {e}")
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @app.delete("/api/reports/{report_id}")
-async def delete_report(
-    report_id: int,
-    current_user_id: int = Depends(get_current_user)  # ← Only auth needed
-):
-    """
-    Delete a report from the audit trail
-    Example: DELETE /api/reports/1
-    """
+async def delete_report(report_id: int, current_user_id: int = Depends(get_current_user)):
     try:
-        # Get report details first
-        conn = get_connection()
-        cursor = conn.cursor(dictionary=True)
-
-        cursor.execute("""
-            SELECT report_month
-            FROM reports
-            WHERE report_id = %s
-              AND user_id = %s
-        """, (report_id, current_user_id))  # ← Use session user
-
-        report = cursor.fetchone()
-
-        if not report:
-            cursor.close()
-            conn.close()
-            raise HTTPException(status_code=404, detail="Report not found")
-
-        month = report['report_month']
-
-        # Delete from database
-        cursor.execute("""
-            DELETE FROM reports
-            WHERE report_id = %s
-              AND user_id = %s
-        """, (report_id, current_user_id))  # ← Use session user
-
-        conn.commit()
-        deleted_count = cursor.rowcount
-
-        cursor.close()
-        conn.close()
-
-        if deleted_count == 0:
-            raise HTTPException(status_code=404, detail="Report not found")
-
-        # Try to delete PDF file
-        try:
-            filename = f'financial_report_{current_user_id}_{month}.pdf'
-            reports_dir = os.path.join(BASE_DIR, "reports")
-            file_path = os.path.join(reports_dir, filename)
-
-            if os.path.exists(file_path):
-                os.remove(file_path)
-                print(f"✓ Deleted PDF: {filename}")
-        except Exception as file_err:
-            print(f"⚠️ Could not delete PDF file: {file_err}")
+        result = delete_report_service(report_id, current_user_id)
 
         return {
             "success": True,
             "message": "Report deleted successfully",
-            "report_id": report_id
+            **result
         }
 
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"❌ Error deleting report: {e}")
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal server error")

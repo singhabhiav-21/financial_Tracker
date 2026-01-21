@@ -1,3 +1,5 @@
+import os
+
 from reportlab.lib.pagesizes import letter
 import pandas as pd
 from reportlab.lib import colors
@@ -8,7 +10,37 @@ from reportlab.graphics.charts.linecharts import HorizontalLineChart
 from reportlab.lib.enums import TA_CENTER
 from datetime import datetime
 from databaseDAO.sqlConnector import get_connection
+from contextlib import contextmanager
+from reportlab.graphics.shapes import Line, String
 
+
+@contextmanager
+def db(dictionary=False):
+    conn = None
+    cursor = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor(dictionary=dictionary)
+        yield conn, cursor
+        conn.commit()
+    except Exception:
+        if conn is not None:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+        raise
+    finally:
+        if cursor is not None:
+            try:
+                cursor.close()
+            except Exception:
+                pass
+        if conn is not None:
+            try:
+                conn.close()  # returns to pool
+            except Exception:
+                pass
 
 
 def get_data(user_id, month):
@@ -16,52 +48,49 @@ def get_data(user_id, month):
         print(f"User with ID {user_id} does not exist!")
         return None
 
-    conn = get_connection()
-    cursor = conn.cursor()
+    with db() as (conn, cursor):
 
-    query = """
-            SELECT transaction_date,
-                   amount,
-                   name,
-                   description
-            FROM transactions
-            WHERE user_id = %s \
-              AND DATE_FORMAT(transaction_date, '%Y-%m') = %s
-            ORDER BY transaction_date \
-            """
-    cursor.execute(query, (user_id, month))
-    result = cursor.fetchall()
+        query = """
+                SELECT transaction_date,
+                       amount,
+                       name,
+                       description
+                FROM transactions
+                WHERE user_id = %s \
+                  AND DATE_FORMAT(transaction_date, '%Y-%m') = %s
+                ORDER BY transaction_date \
+                """
+        cursor.execute(query, (user_id, month))
+        result = cursor.fetchall()
 
-    if not result:
-        print("The user has no data!(visual)")
-        return None
+        if not result:
+            print("The user has no data!(visual)")
+            return None
 
-    df = pd.DataFrame(result, columns=['transaction_date', 'amount', 'name', 'description'])
+        df = pd.DataFrame(result, columns=['transaction_date', 'amount', 'name', 'description'])
 
-    # Convert transaction_date to datetime
-    df['transaction_date'] = pd.to_datetime(df['transaction_date'])
+        # Convert transaction_date to datetime
+        df['transaction_date'] = pd.to_datetime(df['transaction_date'])
 
-    # Convert Decimal to float to avoid pandas calculation errors
-    df['amount'] = df['amount'].astype(float)
+        # Convert Decimal to float to avoid pandas calculation errors
+        df['amount'] = df['amount'].astype(float)
 
-    # Create 'type' column based on amount sign
-    # If amount is negative, it's an expense; if positive, it's income
-    df['type'] = df['amount'].apply(lambda x: 'expense' if x < 0 else 'income')
+        # Create 'type' column based on amount sign
+        # If amount is negative, it's an expense; if positive, it's income
+        df['type'] = df['amount'].apply(lambda x: 'expense' if x < 0 else 'income')
 
-    # Convert all amounts to positive for easier calculations
-    df['amount'] = df['amount'].abs()
+        # Convert all amounts to positive for easier calculations
+        df['amount'] = df['amount'].abs()
 
-    return df
+        return df
 
 
 def user_exists(user_id):
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    query = "SELECT 1 FROM users WHERE user_id = %s"
-    cursor.execute(query, (user_id,))
-    result = cursor.fetchone()
-    return result is not None
+    with db() as (conn, cursor):
+        query = "SELECT 1 FROM users WHERE user_id = %s"
+        cursor.execute(query, (user_id,))
+        result = cursor.fetchone()
+        return result is not None
 
 
 def get_merchant_breakdown(df):
@@ -241,14 +270,14 @@ def create_executive_summary(insights, styles):
     # Create summary cards in a table
     summary_data = [
         ['Metric', 'Value'],
-        ['💰 Total Income', f"SEK {insights['total_income']:,.2f}"],
-        ['💸 Total Expenses', f"SEK {insights['total_expenses']:,.2f}"],
-        ['💵 Net Savings', f"SEK {insights['net_savings']:,.2f}"],
-        ['📝 Total Transactions',
+        ['Total Income', f"SEK {insights['total_income']:,.2f}"],
+        ['Total Expenses', f"SEK {insights['total_expenses']:,.2f}"],
+        ['Net Savings', f"SEK {insights['net_savings']:,.2f}"],
+        ['Total Transactions',
          f"{insights['total_count']} ({insights['income_count']} income, {insights['expense_count']} expenses)"],
-        ['📊 Avg Expense/Transaction', f"SEK {insights['average_expense']:,.2f}"],
-        ['📅 Avg Expense per Day', f"SEK {insights['avg_daily_expense']:,.2f}"],
-        ['✅ Days with Activity', f"{insights['days_with_spending']} days"]
+        ['Avg Expense/Transaction', f"SEK {insights['average_expense']:,.2f}"],
+        ['Avg Expense per Day', f"SEK {insights['avg_daily_expense']:,.2f}"],
+        ['Days with Activity', f"{insights['days_with_spending']} days"]
     ]
 
     table = Table(summary_data, colWidths=[220, 200])
@@ -295,7 +324,7 @@ def create_enhanced_chart_section(chart_data, insights, styles):
         fontName='Helvetica-Bold'
     )
 
-    elements.append(Paragraph("📊 Daily Income vs Expenses", header_style))
+    elements.append(Paragraph("Daily Income vs Expenses", header_style))
     elements.append(Spacer(1, 8))
 
     # Create a larger chart to use more space
@@ -351,9 +380,6 @@ def create_enhanced_chart_section(chart_data, insights, styles):
     lc.valueAxis.gridStrokeWidth = 0.5
 
     drawing.add(lc)
-
-    # Add legend manually
-    from reportlab.graphics.shapes import Line, String
 
     # Legend for Expenses (red line)
     legend_y = 290
@@ -601,5 +627,209 @@ def make_report(user_id, month, output_filename=None):
     elements.extend(create_transaction_list_section(df, insights, styles))
 
     doc.build(elements)
-    print(f"✅ Enhanced report generated successfully: {output_filename}")
+    print(f" Report generated successfully: {output_filename}")
     return True
+
+
+def get_reports_by_userid(current_user_id):
+    with db(dictionary=True) as (conn, cursor):
+        cursor.execute("""
+                       SELECT report_id,
+                              user_id,
+                              report_month,
+                              total_spending,
+                              transaction_count,
+                              generated_at
+                       FROM reports
+                       WHERE user_id = %s
+                       ORDER BY report_month DESC, generated_at DESC
+                       """, (current_user_id,))
+
+        return cursor.fetchall()
+
+
+def get_reports_service(current_user_id):
+
+    reports = get_reports_by_userid(current_user_id)
+
+    return {
+        "success": True,
+        "user_id": current_user_id,
+        "reports": reports,
+        "count": len(reports)
+    }
+
+
+def download_report_by_userid(month, current_user_id):
+    with db() as (conn, cursor):
+        cursor.execute("""
+                       SELECT report_id
+                       FROM reports
+                       WHERE user_id = %s
+                         AND report_month = %s
+                       """, (current_user_id, month))
+
+        result = cursor.fetchone()
+
+        return result[0] if result else None
+
+
+def download_report_service(month, current_user_id):
+    report = download_report_by_userid(month, current_user_id)
+
+    if not report:
+        raise ValueError("Report not found in database")
+
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    filename = f'financial_report_{current_user_id}_{month}.pdf'
+    reports_dir = os.path.join(BASE_DIR, "reports")
+    file_path = os.path.join(reports_dir, filename)
+
+    if not os.path.exists(file_path):
+        print(f"PDF missing, regenerating...")
+        success = make_report(current_user_id, month, file_path)
+
+        if not success or not os.path.exists(file_path):
+            raise FileNotFoundError("Could not generate report file")
+
+    return file_path, filename
+
+
+def get_report_details(report_id, current_user_id):
+    with db(dictionary=True) as (conn, cursor):
+        cursor.execute("""
+                       SELECT report_id,
+                              user_id,
+                              report_month,
+                              total_spending,
+                              transaction_count,
+                              generated_at
+                       FROM reports
+                       WHERE report_id = %s
+                         AND user_id = %s
+                       """, (report_id, current_user_id))
+
+        return cursor.fetchone()
+
+
+def get_reports_details_service(report_id, current_user_id):
+        report = get_report_details(report_id, current_user_id)
+        if not report:
+            raise ValueError("Report not found")
+
+        return {
+            "success": True,
+            **report
+        }
+
+
+def generate_report_by_userid(current_user_id, month, total_spending, transaction_count):
+    with db() as (conn, cursor):
+        cursor.execute("""
+                       INSERT INTO reports (user_id, report_month, total_spending, transaction_count)
+                       VALUES (%s, %s, %s, %s) ON DUPLICATE KEY
+                       UPDATE
+                           total_spending =
+                       VALUES (total_spending), transaction_count =
+                       VALUES (transaction_count), generated_at = CURRENT_TIMESTAMP
+                       """, (current_user_id, month, total_spending, transaction_count))
+
+        conn.commit()
+
+        if cursor.lastrowid:
+            return cursor.lastrowid
+
+        cursor.execute("""
+                       SELECT report_id
+                       FROM reports
+                       WHERE user_id = %s
+                         AND report_month = %s
+                       """, (current_user_id, month))
+
+        row = cursor.fetchone()
+        return row[0] if row else None
+
+
+def generate_monthly_report_service(user_id, month):
+    if len(month) != 7 or month[4] != "-":
+        raise ValueError("Invalid month format. Use YYYY-MM")
+
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+    reports_dir = os.path.join(BASE_DIR, "reports")
+    os.makedirs(reports_dir, exist_ok=True)
+
+    filename = f"financial_report_{user_id}_{month}.pdf"
+    output_path = os.path.join(reports_dir, filename)
+
+    success = make_report(user_id, month, output_path)
+    if not success:
+        raise LookupError("No transaction data found or report generation failed")
+
+    df = get_data(user_id, month)
+    total_spending = float(df["amount"].sum())
+    transaction_count = len(df)
+
+    report_id = generate_report_by_userid(
+        user_id=user_id,
+        month=month,
+        total_spending=total_spending,
+        transaction_count=transaction_count
+    )
+    return {
+        "report_id": report_id,
+        "filename": filename,
+        "total_spending": round(total_spending, 2),
+        "transaction_count": transaction_count
+    }
+
+
+def get_report_month(report_id: int, user_id: int) -> str | None:
+    with db(dictionary=True) as (conn, cursor):
+        cursor.execute("""
+            SELECT report_month
+            FROM reports
+            WHERE report_id = %s
+              AND user_id = %s
+        """, (report_id, user_id))
+
+        row = cursor.fetchone()
+        return row["report_month"] if row else None
+
+
+def delete_report_by_id(report_id: int, user_id: int) -> int:
+    with db() as (conn, cursor):
+        cursor.execute("""
+            DELETE FROM reports
+            WHERE report_id = %s
+              AND user_id = %s
+        """, (report_id, user_id))
+
+        return cursor.rowcount
+
+
+def delete_report_service(report_id: int, user_id: int):
+    month = get_report_month(report_id, user_id)
+    if not month:
+        raise ValueError("Report not found")
+
+    deleted = delete_report_by_id(report_id, user_id)
+    if deleted == 0:
+        raise ValueError("Report not found")
+
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+    filename = f"financial_report_{user_id}_{month}.pdf"
+    reports_dir = os.path.join(BASE_DIR, "reports")
+    file_path = os.path.join(reports_dir, filename)
+
+    try:
+        if os.path.exists(file_path):
+            os.remove(file_path)
+    except Exception:
+        pass
+
+    return {
+        "report_id": report_id,
+        "filename": filename
+    }

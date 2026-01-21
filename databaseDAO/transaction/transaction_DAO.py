@@ -29,6 +29,8 @@ def db(dictionary=False):
                 conn.close()  # returns to pool
             except Exception:
                 pass
+
+
 def register_transaction(user_id, category_id, name, amount, description, transaction_date=None, balance=None, transaction_hash = None):
     query = "INSERT INTO transactions (user_id, category_id, name, amount, description, transaction_date,balance,transaction_hash) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)"
     with db() as (conn, cursor):

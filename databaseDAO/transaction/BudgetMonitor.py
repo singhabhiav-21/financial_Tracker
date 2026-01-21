@@ -16,7 +16,7 @@ def set_budget(user_id, category_id, amount, month, year, repeat: bool):
     if month > 12 and month < 1:
         print("The month cannot be less than 1 or greater than 12")
         return False
-    cursor.execute(query, (user_id,category_id, amount, month, year))
+    cursor.execute(query, (user_id, category_id, amount, month, year))
     if repeat:
         repeat_budget(user_id, category_id, amount)
     else:
