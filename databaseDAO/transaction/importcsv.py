@@ -2,10 +2,9 @@ from databaseDAO.sqlConnector import get_connection
 from mysql.connector import Error
 import pandas as pd
 import hashlib
-from decimal import Decimal,InvalidOperation
+from decimal import Decimal, InvalidOperation
 
-from databaseDAO.transaction.transaction_DAO import register_transaction
-
+from databaseDAO.transaction.transaction_DAO import register_transaction, add_transaction_batch
 
 
 class bankImporter:
@@ -28,10 +27,8 @@ class bankImporter:
 
     def import_csv(self, file_path: str):
         try:
-            # Read CSV with flexible parsing - handle various delimiters and quoted headers
             file = pd.read_csv(file_path, sep=None, engine='python', skipinitialspace=True, quotechar='"')
 
-            # Strip whitespace and quotes from column names
             file.columns = file.columns.str.strip().str.strip('"\'')
 
             print(f"DEBUG: All CSV columns detected: {list(file.columns)}")
@@ -77,62 +74,46 @@ class bankImporter:
             self.imported_count = 0
             self.duplicate_count = 0
 
-            for index, row in file.iterrows():
+            batch = []
+            batch_count = 100
+            errors = []
+
+            for index, (idx, row) in enumerate(file.iterrows(), start=1):
                 try:
+                    if pd.isna(row['Text']) or str(row['Text']).strip() == "":
+                        errors.append(f"Row {index}: Skipping - missing description")
+                        continue
+                    description = " ".join(str(row['Text']).lower().split())
+
+                    # Parse amount
+                    if pd.isna(row['Amount']):
+                        errors.append(f"Row {index}: Skipping - missing amount")
+                        continue
+                    amount_clean = self._clean_amount(row['Amount'])
                     try:
-                        if pd.isna(row['Text']) or str(row["Text"]).strip() == "":
-                            print(f"Row {index}: Skipping - missing description")
-                            continue
-                        get_description = str(row["Text"])
-                        try:
-                            description = " ".join(get_description.lower().split())
-                        except Exception as e:
-                            print(f"Row {index}: Error reading description - {e}")
-                            continue
-                    except KeyError:
-                        print(f"Row {index}: Missing 'Text' column")
+                        amount = Decimal(str(amount_clean)).quantize(Decimal("0.01"))
+                    except (InvalidOperation, ValueError) as e:
+                        errors.append(f"Row {index}: Invalid amount - {e}")
                         continue
+
+                    # Parse date
+                    if pd.isna(row['Value date']):
+                        errors.append(f"Row {index}: Missing date")
+                        continue
+
                     try:
-                        if pd.isna(row['Amount']):
-                            print(f"Row{index}:: Skipping - missing amount")
-                            continue
-                        get_amount = self._clean_amount(row['Amount'])
-                        try:
-                            amount = Decimal(str(get_amount)).quantize(Decimal("0.01"))
-                        except (InvalidOperation, ValueError) as e:
-                            print(f"Row {index}: Invalid amount '{raw_amount}' - {e}")
-                            continue
-                    except KeyError:
-                        print(f"Row {index}: Missing 'Amount' column")
-                        continue
-                    except (ValueError, TypeError) as e:
-                        print(f"Row {index}: Invalid amount format for '{description[:30]}' - {e}")
-                        continue
+                        transaction_date = pd.to_datetime(row['Value date'], errors="raise").strftime("%Y-%m-%d")
                     except Exception as e:
-                        print(f"Row {index}: Error processing amount - {e}")
+                        errors.append(f"Row {index}: Invalid date - {e}")
                         continue
+
+                    # Parse balance (optional)
                     try:
-                        if pd.isna(row["Value date"]):
-                            print(f"Row {index}: Skipping - missing date for '{description[:30]}'")
-                            continue
-                        date = row["Value date"]
-                        try:
-                            transaction_date = pd.to_datetime(date, errors="raise").strftime("%Y-%m-%d")
-                        except Exception:
-                            print(f"Invalid date format: {date}")
-                            continue
-                    except KeyError:
-                        print(f"Row {index}: Missing 'Value date' column")
-                        continue
-                    except Exception as e:
-                        print(f"Row {index}: Invalid date format for '{description[:30]}' - {e}")
-                        continue
-                    try:
-                        balance = self._clean_amount(row['Balance']) if 'Balance' in row else 0.0
+                        balance = self._clean_amount(row['Balance']) if 'Balance' in row and not pd.isna(
+                            row['Balance']) else 0.0
                     except:
                         balance = 0.0
 
-                    # Include user_id in the hash
                     hash_key = f"{self.user_id}|{description}|{amount:.2f}|{transaction_date}"
                     transaction_hash = self._generate_hash(hash_key)
 
@@ -141,36 +122,43 @@ class bankImporter:
                         print(f"Hash key: {hash_key}")
                         print(f"Hash: {transaction_hash}")
 
-                    try:
-                        new_transaction = register_transaction(
-                            user_id=self.user_id,
-                            category_id=self.category_id,
-                            name=description[:25],
-                            amount=amount,
-                            description=description[:225],
-                            transaction_date=transaction_date,
-                            balance=balance,
-                            transaction_hash=transaction_hash,
-                        )
-                        if new_transaction:
-                            self.imported_count += 1
-                            print(f"{'CREDIT' if amount > 0 else 'DEBIT'}: {description[:40]} | {amount:.2f}kr")
-                    except Error as e:
-                        if e.errno == 1062:
-                            self.duplicate_count += 1
-                            print(f"Duplicate transaction skipped (DB constraint): {description[:40]}")
-                        else:
-                            print(f"Database error for transaction '{description[:40]}': {e}")
-                            raise
+                    batch.append((
+                        self.user_id,
+                        self.category_id,
+                        description[:25],
+                        amount,
+                        description[:225],
+                        transaction_date,
+                        balance,
+                        transaction_hash,
+                    ))
 
+                    if len(batch) >= batch_count:
+                        rows_inserted = add_transaction_batch(batch)
+                        self.imported_count += rows_inserted
+
+                        duplicates_in_batch = len(batch) - rows_inserted
+                        self.duplicate_count += duplicates_in_batch
+
+                        print(f"Processed {self.imported_count + self.duplicate_count}: "
+                              f"{rows_inserted} new, {duplicates_in_batch} skipped")
+                        batch.clear()
                 except Exception as e:
-                    print(f"Error processing transaction: {e}")
+                    errors.append(f"Row {index}: {str(e)}")
                     continue
+
+            if batch:
+                rows_inserted = add_transaction_batch(batch)
+                duplicates_in_batch = len(batch) - rows_inserted
+
+                self.imported_count += rows_inserted
+                self.duplicate_count += duplicates_in_batch
+
+                print(f"Final batch: {rows_inserted} new, {duplicates_in_batch} skipped")
 
             print(f"\nImport Complete:")
             print(f"  Imported: {self.imported_count} transactions")
             print(f"  Duplicates skipped: {self.duplicate_count}")
-
             return True
 
         except FileNotFoundError:

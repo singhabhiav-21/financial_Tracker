@@ -69,3 +69,19 @@ def get_transaction(transaction_id, user_id):
         if not row:
             return False
     return row
+
+
+def add_transaction_batch(batch):
+    if not batch:
+        return 0
+
+    query = """
+    INSERT IGNORE INTO transactions 
+        (user_id, category_id, name, amount, description, transaction_date,balance,transaction_hash) 
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
+        """
+
+    with db() as (conn, cursor):
+        cursor.executemany(query, batch)
+        rows_affected = cursor.rowcount
+    return rows_affected
