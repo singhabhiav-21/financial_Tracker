@@ -7,6 +7,6 @@ __pycache__/
 *.pyo
 
 .env
-
+.DS_Store
 /Users/abhinavsingh/Money_tracker/financial_Tracker/databaseDAO/test
 /Users/abhinavsingh/Money_tracker/financial_Tracker/reports
