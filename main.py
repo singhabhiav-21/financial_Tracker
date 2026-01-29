@@ -44,12 +44,12 @@ SECRET_KEY = os.getenv("SECRET_KEY")
 if not SECRET_KEY:
     raise ValueError("SECRET_KEY not found in environment variables!")
 
-# ==================== MIDDLEWARE (ORDER MATTERS!) ====================
-# 1. CORS first (executes last)
+# ==================== MIDDLEWARE  ====================
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,  # ← Must be True for cookies
+    allow_credentials=True,  #
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -88,37 +88,6 @@ app.mount(
     name="static"
 )
 
-# ==================== CSRF TOKENS ====================
-csrf_tokens = {}
-
-
-@app.get("/csrf-token")
-async def get_csrf_token():
-    """Generate and return CSRF token"""
-    token = secrets.token_urlsafe(32)
-    csrf_tokens[token] = datetime.now()
-
-    # Clean old tokens (older than 1 hour)
-    current_time = datetime.now()
-    old_tokens = [t for t, created in csrf_tokens.items()
-                  if current_time - created > timedelta(hours=1)]
-    for t in old_tokens:
-        del csrf_tokens[t]
-
-    return {"csrf_token": token}
-
-
-def verify_csrf_token(request: Request):
-    """Verify CSRF token from request header"""
-    token = request.headers.get("X-CSRF-Token")
-    if not token or token not in csrf_tokens:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Invalid CSRF token"
-        )
-    return token
-
-
 def get_current_user(request: Request):
     user_id = request.session.get("user_id")
     if not user_id:
@@ -131,10 +100,6 @@ def get_current_user(request: Request):
 async def index_page():
     return FileResponse(os.path.join(BASE_DIR, "frontend", "templates", "index.html"))
 
-
-#@app.get("/dashboard")
-#async def dashboard_redirect():
-#   return RedirectResponse(url="/dashboard.html")
 
 
 @app.get("/dashboard")
@@ -310,9 +275,8 @@ async def get_me(request: Request, current_user:int =Depends(get_current_user)):
 @app.post("/register")
 async def register_endpoint(
         data: RegisterRequest,
-        #csrf_token: str = Depends(verify_csrf_token)
+
 ):
-    """Register with CSRF protection"""
     success, message = register(data.name, data.email, data.password)
 
     if not success:
@@ -328,7 +292,6 @@ async def update_user_endpoint(
     user_email = request.session.get("email")
 
     result = update_userinfo(user_email, data.name, data.new_email)
-    """Update user info with CSRF protection"""
 
     if not result:
         raise HTTPException(status_code=400, detail="Update failed")
@@ -339,9 +302,7 @@ async def update_user_endpoint(
 @app.put("/update-password")
 async def update_password_endpoint(
         data: UpdatePasswordRequest,
-        #csrf_token: str = Depends(verify_csrf_token)
 ):
-    """Update password with CSRF protection"""
     result = update_password(
         data.email, data.old_password, data.password, data.re_password
     )

@@ -47,7 +47,7 @@ class ExchangeRates:
             }
             self.cache_time = datetime.now()
 
-            print(f"✅ Got {len(rates)} exchange rates for base {base_currency}")
+            print(f" Got {len(rates)} exchange rates for base {base_currency}")
             print(f"   Sample: 1 {base_currency} = {rates.get('SEK', 'N/A')} SEK, {rates.get('EUR', 'N/A')} EUR")
             return rates
 
