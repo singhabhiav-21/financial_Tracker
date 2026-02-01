@@ -61,7 +61,7 @@ app.add_middleware(
     max_age=86400,
     session_cookie="user_session",
     same_site="lax",
-    https_only=False,
+    https_only=True,
 )
 
 
