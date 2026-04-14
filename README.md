@@ -8,7 +8,7 @@
 
 # FinTracker – Personal Finance Management System
 
-FinTracker is a web-based personal finance management application that allows users to manage accounts, track transactions, and generate financial reports. The project was developed as part of academic coursework to demonstrate full-stack web development, backend architecture, and secure data handling.
+FinTracker is a web-based personal finance management application built as a personal project to explore backend architecture, secure data handling and real-world deployment constraints.
 
 **Live Demo**: [https://fintracker-kw1h.onrender.com]
 
