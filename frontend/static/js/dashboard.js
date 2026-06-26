@@ -285,7 +285,6 @@ function updateDateRangeDisplay(startDate, endDate) {
     }
 }
 
-// ==================== WEEKLY DATA PROCESSING ====================
 
 // ==================== CHART RENDERING ====================
 function renderWeeklyChart(weeklyData) {
@@ -378,9 +377,7 @@ function renderWeeklyChart(weeklyData) {
                 title: {
                     display: true,
                     text: [
-                        `Last ${selectedWeeks} Weeks - Income vs Expenses`,
-                        `Income: ${formatCurrency(totalIncome, baseCurrency)} | Expenses: ${formatCurrency(totalExpenses, baseCurrency)} | Net: ${formatCurrency(netAmount, baseCurrency)}`
-                    ],
+                        `Last ${selectedWeeks} Weeks - Income vs Expenses`],
                     font: { size: 16, weight: 'bold' },
                     padding: 20,
                     color: '#1f2937'
