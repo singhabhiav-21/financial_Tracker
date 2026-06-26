@@ -15,12 +15,46 @@ FinTracker is a web-based personal finance management application built as a per
 - Email: dummyaccount@mail.com
 - Password: DemoPass1!
 
-## Running Locally
-1. Clone the repo
-2. Install dependencies: pip install -r requirements.txt
-3. Set up MySQL database
-4. Add environment variables (DB credentials, API keys)
-5. Run: uvicorn main:app --reload
+## Running with Docker 
+
+**Prerequisites:** [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/)
+ 
+```bash
+git clone https://github.com/your-username/fintracker.git
+cd fintracker
+# Create a .env file with your DB credentials, secret key, and optionally an exchange API key
+docker compose up --build
+```
+ 
+App runs at **http://localhost:8000**.
+ 
+```bash
+docker compose down          # stop
+docker compose down -v       # stop and wipe the database
+```
+ 
+---
+ 
+## Running Locally (Without Docker)
+ 
+### Prerequisites
+- Python 3.10+
+- A running MySQL instance
+```bash
+git clone https://github.com/your-username/fintracker.git
+cd fintracker
+pip install -r requirements.txt
+```
+ 
+Copy and fill in the `.env` file (see above), then point `DB_HOST` at your local MySQL host (e.g. `localhost`).
+ 
+```bash
+uvicorn main:app --reload
+```
+ 
+App runs at **http://localhost:8000**.
+ 
+---
 
 ## Key Features
 
