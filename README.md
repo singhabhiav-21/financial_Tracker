@@ -1,12 +1,26 @@
 # FinTracker – Personal Finance Management System
+![Python](https://img.shields.io/badge/Python-3776AB?style=flat&logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat&logo=fastapi&logoColor=white)
+![MySQL](https://img.shields.io/badge/MySQL-4479A1?style=flat&logo=mysql&logoColor=white)
+![Render](https://img.shields.io/badge/Deployed-Render-46E3B7?style=flat)
 
-FinTracker is a web-based personal finance management application that allows users to manage accounts, track transactions, and generate financial reports. The project was developed as part of academic coursework to demonstrate full-stack web development, backend architecture, and secure data handling.
+<img width="2048" height="1150" alt="Screenshot 2026-04-14 at 03 45 37" src="https://github.com/user-attachments/assets/4ff440ac-4b4a-466c-8469-d8c7624cb669" />
 
-**Live Demo**: [https://fintracker-kw1h.onrender.com](https://fintracker-kw1h.onrender.com)
+# FinTracker – Personal Finance Management System
 
-**Demo Credentials:**
+FinTracker is a web-based personal finance management application built as a personal project to explore backend architecture, secure data handling and real-world deployment constraints.
+
+**Live Demo**: [https://fintracker-kw1h.onrender.com]
+
 - Email: dummyaccount@mail.com
 - Password: DemoPass1!
+
+## Running Locally
+1. Clone the repo
+2. Install dependencies: pip install -r requirements.txt
+3. Set up MySQL database
+4. Add environment variables (DB credentials, API keys)
+5. Run: uvicorn main:app --reload
 
 ## Key Features
 
@@ -61,6 +75,11 @@ FinTracker is a web-based personal finance management application that allows us
 - File upload validation (type and size checks)
 
 **Note:** Security mechanisms are implemented for educational purposes and are not intended for production financial systems.
+## Known Limitations
+- SHA-256 is not recommended for production password hashing — bcrypt would be the production choice
+- Free tier on Render causes cold starts
+- Exchange rates cached for 12 hours
+
 
 ### Frontend
 - Vanilla JavaScript
