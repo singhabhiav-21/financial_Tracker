@@ -1,8 +1,7 @@
 import unittest
 from unittest.mock import MagicMock, patch
-from financial_Tracker.databaseDAO import sqlConnector, userDAO
 
-from financial_Tracker.databaseDAO.Account import account_dao
+from databaseDAO.Account import account_dao
 
 
 class TestAccountFunctions(unittest.TestCase):
@@ -12,8 +11,8 @@ class TestAccountFunctions(unittest.TestCase):
         self.cursor_mock = MagicMock()
         self.conn_mock.cursor.return_value = self.cursor_mock
 
-        patcher1 = patch('financial_Tracker.databaseDAO.sqlConnector.get_connection', return_value=self.conn_mock)
-        patcher2 = patch('financial_Tracker.databaseDAO.userDAO.hashAgain', side_effect=lambda salt, pw: "hashedpassword")
+        patcher1 = patch('databaseDAO.sqlConnector.get_connection', return_value=self.conn_mock)
+        patcher2 = patch('databaseDAO.Account.account_dao.hashAgain', side_effect=lambda salt, pw: "hashedpassword")
         self.addCleanup(patcher1.stop)
         self.addCleanup(patcher2.stop)
         self.mock_get_connection = patcher1.start()
@@ -44,9 +43,11 @@ class TestAccountFunctions(unittest.TestCase):
         self.conn_mock.commit.assert_called_once()
 
     def test_delete_account_success(self):
-        # Mock fetching user_id and password
-        self.cursor_mock.fetchone.side_effect = [(1,), ("salt:hashedpassword",)]
-        result = account_dao.delete_account(101, "mypassword")
+        self.cursor_mock.fetchone.side_effect = [
+            {"user_id": 1},
+            {"password": "salt:hashedpassword"}
+            ]
+        result = account_dao.delete_account(1, 101, "mypassword")
         self.assertTrue(result)
         self.conn_mock.commit.assert_called_once()
 

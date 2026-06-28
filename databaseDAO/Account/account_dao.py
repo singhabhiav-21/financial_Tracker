@@ -1,6 +1,5 @@
-from contextlib import contextmanager
 
-from databaseDAO.sqlConnector import get_connection, db
+from databaseDAO.sqlConnector import db
 from databaseDAO.userDAO import hashAgain
 
 
@@ -77,7 +76,7 @@ def delete_account(current_user_id: int, account_id: int, password: str) -> bool
             print(f"No account found with ID {account_id}")
             return False
 
-        account_owner_id = row[0]
+        account_owner_id = row["user_id"]
 
         if account_owner_id != current_user_id:
             print(
@@ -92,7 +91,7 @@ def delete_account(current_user_id: int, account_id: int, password: str) -> bool
             print(f"No user found with ID {current_user_id}")
             return False
 
-        stored_pw = row[0]
+        stored_pw = row["password"]
         salt, real_hash_pw = stored_pw.split(":")
         password_hash = hashAgain(salt, password)
 
@@ -182,7 +181,6 @@ def add_money(user_id, account_id, credits: int):
     with db() as (conn, cursor):
         query = "UPDATE account SET account_balance = account_balance + %s WHERE account_id = %s AND user_id = %s"
         cursor.execute(query, (credits, account_id, user_id))
-        conn.commit()
         print(f"Added {credits} to account {account_id}")
         return True
 

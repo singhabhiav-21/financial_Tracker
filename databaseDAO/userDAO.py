@@ -1,6 +1,6 @@
 from contextlib import contextmanager
 
-from databaseDAO.sqlConnector import get_connection, db
+from databaseDAO.sqlConnector import db
 import hashlib
 import os
 from datetime import datetime, timedelta

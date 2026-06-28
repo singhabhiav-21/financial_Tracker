@@ -1,16 +1,17 @@
-from databaseDAO.sqlConnector import get_connection, db
+from databaseDAO.sqlConnector import db
 
 
-def register_transaction(user_id, category_id, name, amount, description, transaction_date=None, balance=None, transaction_hash = None):
+def register_transaction(user_id, category_id, name, amount, description, transaction_date=None, balance=None,
+                         transaction_hash=None):
     query = "INSERT INTO transactions (user_id, category_id, name, amount, description, transaction_date,balance,transaction_hash) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)"
     with db() as (conn, cursor):
-        cursor.execute(query, (user_id, category_id, name, amount, description, transaction_date,balance, transaction_hash))
+        cursor.execute(query,
+                       (user_id, category_id, name, amount, description, transaction_date, balance, transaction_hash))
     print("transaction registered!")
     return True
 
 
 def delete_transaction(transaction_id, user_id):
-
     query = "DELETE FROM transactions WHERE transaction_id = %s AND user_id = %s"
     with db() as (conn, cursor):
         cursor.execute(query, (transaction_id, user_id,))
@@ -18,6 +19,8 @@ def delete_transaction(transaction_id, user_id):
 
 
 def update_transaction(transaction_id, user_id, category_id=None, name=None, amount=None, description=None):
+    if not check_transaction(transaction_id, user_id):
+        return False
 
     updates = []
     values = []
@@ -50,14 +53,19 @@ def update_transaction(transaction_id, user_id, category_id=None, name=None, amo
     return True
 
 
-def get_all_transactions(user_id):
-    query = "SELECT * FROM transactions WHERE user_id = %s"
+def check_transaction(transaction_id_check, user_id_check):
+    query = f"SELECT name FROM transactions WHERE transaction_id = %s AND user_id = %s"
     with db(dictionary=True) as (conn, cursor):
-        cursor.execute(query, (user_id,))
-        rows = cursor.fetchall()
-        if not rows:
-            return []
-        return rows
+        cursor.execute(query, (transaction_id_check, user_id_check))
+        name = cursor.fetchone()
+        if not name:
+            return False
+        else:
+            return True
+
+
+
+
 
 
 def get_transaction(transaction_id, user_id):

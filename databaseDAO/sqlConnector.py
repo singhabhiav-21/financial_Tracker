@@ -10,9 +10,9 @@ load_dotenv()
 
 pool = MySQLConnectionPool(
     pool_name="mypool",
-    pool_size=1,
+    pool_size=int(os.getenv('DB_POOL_SIZE', 1)),
     pool_reset_session=True,
-    host=os.getenv('DB_HOST', 'mysql'),
+    host=os.getenv('DB_HOST', 'localhost'),
     port=int(os.getenv('DB_PORT', '3306')),
     user=os.getenv('DB_USER', os.environ.get("MYSQL_USER")),
     password=os.getenv('DB_PASSWORD', os.environ.get("MYSQL_PASSWORD")),
