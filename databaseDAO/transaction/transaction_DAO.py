@@ -64,8 +64,14 @@ def check_transaction(transaction_id_check, user_id_check):
             return True
 
 
-
-
+def get_all_transactions(user_id):
+    query = "SELECT * FROM transactions WHERE user_id = %s"
+    with db(dictionary=True) as (conn, cursor):
+        cursor.execute(query, (user_id,))
+        rows = cursor.fetchall()
+        if not rows:
+            return []
+        return rows
 
 
 def get_transaction(transaction_id, user_id):
