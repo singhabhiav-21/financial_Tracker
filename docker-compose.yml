@@ -6,8 +6,8 @@ services:
     env_file:
       - .env
     depends_on:
-      - mysql
-
+      mysql:
+        condition: service_healthy
   mysql:
     image: mysql:9
     restart: always
@@ -18,6 +18,12 @@ services:
       - "3307:3306"
     volumes:
       - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ['CMD', 'mysql', '-u', 'root', '-p${MYSQL_PASSWORD}']
+      retries: 5
+      interval: 7s
+      timeout: 7s
+      start_period: 10s
 
 volumes:
       mysql_data:
