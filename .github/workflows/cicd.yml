@@ -45,6 +45,9 @@ jobs:
           until mysqladmin ping -h 127.0.0.1 -u root -proot --silent; do
             sleep 1
           done
+
+      - name: Load db
+        run: mysql -h 127.0.0.1 -u root -proot fintracker_test < budget.sql
       - name: Run tests
         env:
           DB_HOST: 127.0.0.1
