@@ -10,7 +10,6 @@ class TestUserManagement(unittest.TestCase):
         # This runs once before all tests
         cls.conn = get_connection()
         cls.cursor = cls.conn.cursor()
-        # Optionally, clear the test users table
         cls.cursor.execute("""CREATE TABLE IF NOT EXISTS users(
             user_id INT PRIMARY KEY AUTO_INCREMENT,
             name    VARCHAR(50) NOT NULL ,
@@ -19,7 +18,14 @@ class TestUserManagement(unittest.TestCase):
             profile_photo VARCHAR(255) NUll,
             date_added DATETIME DEFAULT current_timestamp
         ); """)
-
+        cls.cursor.execute("""CREATE TABLE IF NOT EXISTS category(
+            category_id INT PRIMARY KEY AUTO_INCREMENT,
+            user_id INT NOT NULL,
+            name VARCHAR(50) NOT NULL,
+            type VARCHAR (50) NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_on DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        );""")
         cls.cursor.execute("""
             CREATE TABLE IF NOT EXISTS transactions(
             transaction_id INT PRIMARY KEY AUTO_INCREMENT,
